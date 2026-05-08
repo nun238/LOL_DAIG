@@ -282,7 +282,6 @@
       
       <div id="circle-ui-container">
         <div id="target-marker"></div>
-        
         <div id="circle-progress">
           <div id="circle-inner">
             <div id="current-percent">0<span style="font-size: 0.4em;">%</span></div>
@@ -313,7 +312,6 @@
   </main>
 
   <script>
-    // ※ ここにご指定のURLを設定済みです！
     const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxtbmCM5ElVC3kGYu2hUcMgmQbsU8bvxN4AL6vd2GAX_RnzKDjt7kK9_sesQ5PNOr26/exec";
 
     // 6軸のステータスキー定義
@@ -476,7 +474,6 @@
       ]}
     ];
 
-    // 5体のチャンピオンデータ
     const allChampions = [
       { name: "エイトロックス", id: "Aatrox", title: "ダーキンの凶剣", role: "Top", description: "圧倒的なサステインで敵陣で暴れ回る吸血鬼。", stats: { valMacro: -2, valTeam: -6, valLate: 0, valRange: -6, valImmobile: -2, valSustain: 6 } },
       { name: "アーリ", id: "Ahri", title: "九尾の妖狐", role: "Mid", description: "高い機動力とチャームで敵を翻弄するメイジアサシン。", stats: { valMacro: 2, valTeam: 0, valLate: 0, valRange: 4, valImmobile: -8, valSustain: -6 } },
@@ -646,7 +643,6 @@
       { name: "ザイラ", id: "Zyra", title: "茨の目覚め", role: "Support", description: "植物の種を育てて自律砲台とし、茨の森で敵を拘束する植物学者。", stats: { valMacro: 6, valTeam: 4, valLate: 4, valRange: 8, valImmobile: 10, valSustain: 6 } }
     ];
 
-    /* ＝＝＝ システム状態 ＝＝＝ */
     let userName = "";
     let currentPage = 0;
     const QUESTIONS_PER_PAGE = 8; 
@@ -657,7 +653,6 @@
       const nameInput = document.getElementById("user-name").value.trim();
       if (!nameInput) { alert("プレイヤーネームを入力してください！"); return; }
       userName = nameInput;
-      
       document.getElementById("start-screen").classList.add("hidden");
       document.getElementById("quiz-screen").classList.remove("hidden");
       document.getElementById("progress-wrapper").classList.remove("hidden");
@@ -672,12 +667,10 @@
     function renderQuestions() {
       updateProgress();
       document.getElementById("prev-btn").style.display = currentPage === 0 ? "none" : "block";
-
       const container = document.getElementById("question-container");
       container.innerHTML = "";
       const startIndex = currentPage * QUESTIONS_PER_PAGE;
       const endIndex = Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length);
-
       for (let i = startIndex; i < endIndex; i++) {
         const q = questions[i];
         const qBlock = document.createElement("div");
@@ -686,14 +679,12 @@
         qText.className = "question-text";
         qText.innerText = q.text;
         qBlock.appendChild(qText);
-
         q.choices.forEach((choice, index) => {
           const btn = document.createElement("button");
           btn.className = "choice-btn";
           btn.innerText = choice.text;
           if (userAnswers[q.id]?.index === index) btn.classList.add("selected");
           else if (userAnswers[q.id]) btn.classList.add("dimmed");
-          
           btn.onclick = () => {
             qBlock.querySelectorAll(".choice-btn").forEach(b => { b.classList.remove("selected"); b.classList.add("dimmed"); });
             btn.classList.remove("dimmed"); btn.classList.add("selected");
@@ -722,7 +713,6 @@
       }
       currentPage++;
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
       if (currentPage * QUESTIONS_PER_PAGE >= questions.length) {
         document.getElementById("quiz-screen").classList.add("hidden");
         document.getElementById("progress-wrapper").classList.add("hidden");
@@ -732,17 +722,13 @@
       }
     }
 
-    /* ＝＝＝ ミニゲーム：4秒鬼畜リミットテスト ＝＝＝ */
     const pourBtn = document.getElementById("pour-btn");
     const percentText = document.getElementById("current-percent");
     const timerDisplay = document.getElementById("timer-display");
     const circleProgress = document.getElementById("circle-progress");
     const circleInner = document.getElementById("circle-inner");
-    
     const MAX_TIME = 4.00;
-    const MAX_POUR_AMOUNT = 125;
     const POUR_SPEED = 100.5;
-
     let fillAmount = 0;   
     let clickCount = 0;   
     let isPouring = false;
@@ -754,7 +740,6 @@
       document.getElementById("start-minigame-btn").classList.add("hidden");
       pourBtn.classList.remove("hidden");
       pourBtn.classList.add("active");
-      
       isGameRunning = true;
       gameStartTime = performance.now();
       animationFrameId = requestAnimationFrame(gameLoop);
@@ -762,26 +747,22 @@
 
     function gameLoop(currentTime) {
       if (!isGameRunning) return;
-
       const elapsedSeconds = (currentTime - gameStartTime) / 1000;
       let timeLeft = Math.max(MAX_TIME - elapsedSeconds, 0);
-
       timerDisplay.innerText = timeLeft.toFixed(2);
       if (timeLeft <= 1.50) timerDisplay.classList.add("timer-danger");
-
       if (isPouring) {
         fillAmount += POUR_SPEED * (1 / 60); 
         updateVisuals();
-        if (fillAmount >= MAX_POUR_AMOUNT) stopPouring();
+        if (fillAmount >= 125) stopPouring();
       }
-
       if (timeLeft <= 0) finishMinigame();
       else animationFrameId = requestAnimationFrame(gameLoop);
     }
 
     function startPouring(e) {
       if (e) e.preventDefault(); 
-      if (!isGameRunning || fillAmount >= MAX_POUR_AMOUNT) return; 
+      if (!isGameRunning || fillAmount >= 125) return; 
       isPouring = true;
       clickCount++;
     }
@@ -793,10 +774,8 @@
 
     function updateVisuals() {
       const displayPercent = Math.floor(fillAmount);
-      
       percentText.innerHTML = `${displayPercent}<span style="font-size: 0.4em;">%</span>`;
       const degree = (fillAmount / 100) * 360;
-
       if (displayPercent > 100) {
         circleProgress.style.background = `conic-gradient(var(--danger) ${degree}deg, transparent 0deg)`;
         percentText.style.color = "var(--danger)";
@@ -821,82 +800,45 @@
       cancelAnimationFrame(animationFrameId);
       pourBtn.classList.remove("active");
       timerDisplay.classList.remove("timer-danger");
-      
       let finalPercent = Math.floor(fillAmount);
       let titleColor = "#fff";
-      
-      if (finalPercent >= 111) {
-        titleColor = "var(--danger)";
-        minigameStats.valTeam -= 6; minigameStats.valMacro -= 6;
-      } else if (finalPercent >= 104) {
-        titleColor = "#e67e22";
-        minigameStats.valMacro -= 4; minigameStats.valSustain -= 3;
-      } else if (finalPercent >= 101) {
-        titleColor = "#f1c40f";
-        minigameStats.valSustain -= 2; minigameStats.valImmobile -= 2;
-      } else if (finalPercent === 100) {
-        titleColor = "var(--gold-1)";
-        minigameStats.valMacro += 5; minigameStats.valImmobile -= 5; minigameStats.valTeam += 5;
-      } else if (finalPercent >= 98) {
-        titleColor = "var(--cyan)";
-        minigameStats.valMacro -= 2; minigameStats.valImmobile -= 4;
-      } else if (finalPercent >= 94) {
-        titleColor = "#3498db";
-        minigameStats.valMacro += 4; minigameStats.valLate += 3;
-      } else {
-        titleColor = "#95a5a6";
-        minigameStats.valRange += 5; minigameStats.valTeam += 2; minigameStats.valLate += 3;
-      }
-
-      if (clickCount === 1) {
-        minigameStats.valMacro -= 3; minigameStats.valTeam -= 2; 
-      } else if (clickCount >= 4) {
-        minigameStats.valMacro += 4; minigameStats.valLate += 2;
-      }
+      if (finalPercent >= 111) { titleColor = "var(--danger)"; minigameStats.valTeam -= 6; minigameStats.valMacro -= 6; }
+      else if (finalPercent >= 104) { titleColor = "#e67e22"; minigameStats.valMacro -= 4; minigameStats.valSustain -= 3; }
+      else if (finalPercent >= 101) { titleColor = "#f1c40f"; minigameStats.valSustain -= 2; minigameStats.valImmobile -= 2; }
+      else if (finalPercent === 100) { titleColor = "var(--gold-1)"; minigameStats.valMacro += 5; minigameStats.valImmobile -= 5; minigameStats.valTeam += 5; }
+      else if (finalPercent >= 98) { titleColor = "var(--cyan)"; minigameStats.valMacro -= 2; minigameStats.valImmobile -= 4; }
+      else if (finalPercent >= 94) { titleColor = "#3498db"; minigameStats.valMacro += 4; minigameStats.valLate += 3; }
+      else { titleColor = "#95a5a6"; minigameStats.valRange += 5; minigameStats.valTeam += 2; minigameStats.valLate += 3; }
 
       const msgEl = document.getElementById("minigame-result-msg");
       msgEl.innerHTML = `<span style="color:${titleColor}">${finalPercent}%</span>`;
       msgEl.style.opacity = 1;
 
-      setTimeout(calculateResult, 3000);
+      setTimeout(() => calculateResult(finalPercent, clickCount), 3000);
     }
 
-    /* ＝＝＝ 最終計算＆結果表示 ＝＝＝ */
-    function calculateResult() {
+    function calculateResult(finalPercent, finalClickCount) {
       let raw = { ...minigameStats };
       let answersArr = [];
       for (const k in userAnswers) {
         const s = userAnswers[k].stats;
         answersArr.push(userAnswers[k].index + 1); 
-        for (const a in raw) {
-          raw[a] = (raw[a] || 0) + (s[a] || 0);
-        }
+        for (const a in raw) { raw[a] = (raw[a] || 0) + (s[a] || 0); }
       }
-      
       const mapScale = (v) => Math.max(-10, Math.min(10, Math.round((v / 30) * 10)));
       const userPoint = { 
         valMacro: mapScale(raw.valMacro), valTeam: mapScale(raw.valTeam), 
         valLate: mapScale(raw.valLate), valRange: mapScale(raw.valRange),
         valImmobile: mapScale(raw.valImmobile), valSustain: mapScale(raw.valSustain)
       };
-
       let best = allChampions[0], minD = 99999;
       allChampions.forEach(c => {
-        const d = Math.sqrt(
-          Math.pow(userPoint.valMacro - c.stats.valMacro, 2) + 
-          Math.pow(userPoint.valTeam - c.stats.valTeam, 2) + 
-          Math.pow(userPoint.valLate - c.stats.valLate, 2) + 
-          Math.pow(userPoint.valRange - c.stats.valRange, 2) +
-          Math.pow(userPoint.valImmobile - c.stats.valImmobile, 2) +
-          Math.pow(userPoint.valSustain - c.stats.valSustain, 2)
-        );
+        const d = Math.sqrt(Math.pow(userPoint.valMacro-c.stats.valMacro,2)+Math.pow(userPoint.valTeam-c.stats.valTeam,2)+Math.pow(userPoint.valLate-c.stats.valLate,2)+Math.pow(userPoint.valRange-c.stats.valRange,2)+Math.pow(userPoint.valImmobile-c.stats.valImmobile,2)+Math.pow(userPoint.valSustain-c.stats.valSustain,2));
         if (d < minD) { minD = d; best = c; }
       });
-
       window.scrollTo({ top: 0, behavior: 'smooth' });
       document.getElementById("minigame-screen").classList.add("hidden");
       document.getElementById("result-screen").classList.remove("hidden");
-      
       document.getElementById("display-user-name").innerText = userName;
       document.getElementById("result-champ-img").src = `https://ddragon.leagueoflegends.com/cdn/14.21.1/img/champion/${best.id}.png`;
       document.getElementById("result-title").innerText = `「${best.title}」`;
@@ -906,76 +848,37 @@
 
       const renderSpectrum = (l, r, v, cl, cr) => {
         const ratio = ((v + 10) / 20) * 100;
-        return `
-          <div class="stat-row">
-            <div class="stat-labels">
-              <span style="color:${cl};">${l}</span>
-              <span style="color:${cr};">${r}</span>
-            </div>
-            <div class="stat-bar-bg">
-              <div class="stat-bar-fill" style="width:100%; background:linear-gradient(90deg,${cl},${cr});"></div>
-              <div class="stat-center-line"></div>
-              <div class="stat-marker" style="left:${ratio}%;"></div>
-            </div>
-          </div>`;
+        return `<div class="stat-row"><div class="stat-labels"><span style="color:${cl};">${l}</span><span style="color:${cr};">${r}</span></div><div class="stat-bar-bg"><div class="stat-bar-fill" style="width:100%; background:linear-gradient(90deg,${cl},${cr});"></div><div class="stat-center-line"></div><div class="stat-marker" style="left:${ratio}%;"></div></div></div>`;
       };
+      document.getElementById("result-stats").innerHTML = renderSpectrum("直感・ミクロ", "論理・マクロ", userPoint.valMacro, "#b366ff", "#0ac8b9") + renderSpectrum("自己中・エゴ", "献身・利他", userPoint.valTeam, "#e84057", "#27ae60") + renderSpectrum("序盤スノーボール", "終盤スケール", userPoint.valLate, "#d4b87e", "#9b59b6") + renderSpectrum("近接・メレー", "遠距離・レンジ", userPoint.valRange, "#e67e22", "#3498db") + renderSpectrum("機動・アサシン", "不動・どっしり", userPoint.valImmobile, "#f1c40f", "#7f8c8d") + renderSpectrum("バースト・瞬間火力", "持続・タンク", userPoint.valSustain, "#e74c3c", "#2ecc71");
 
-      document.getElementById("result-stats").innerHTML = 
-        renderSpectrum("直感・ミクロ", "論理・マクロ", userPoint.valMacro, "#b366ff", "#0ac8b9") +
-        renderSpectrum("自己中・エゴ", "献身・利他", userPoint.valTeam, "#e84057", "#27ae60") +
-        renderSpectrum("序盤スノーボール", "終盤スケール", userPoint.valLate, "#d4b87e", "#9b59b6") +
-        renderSpectrum("近接・メレー", "遠距離・レンジ", userPoint.valRange, "#e67e22", "#3498db") +
-        renderSpectrum("機動・アサシン", "不動・どっしり", userPoint.valImmobile, "#f1c40f", "#7f8c8d") +
-        renderSpectrum("バースト・瞬間火力", "持続・タンク", userPoint.valSustain, "#e74c3c", "#2ecc71");
-
-      sendDataToGAS(best.name, userPoint, answersArr);
+      sendDataToGAS(best.name, userPoint, answersArr, finalPercent, finalClickCount);
     }
 
-    function sendDataToGAS(championName, scorePoint, answersArr) {
+    function sendDataToGAS(championName, scorePoint, answersArr, finalPercent, finalClickCount) {
       const summaryStr = `論理:${scorePoint.valMacro},利他:${scorePoint.valTeam},終盤:${scorePoint.valLate},遠距離:${scorePoint.valRange},不動:${scorePoint.valImmobile},持続:${scorePoint.valSustain}`;
-      
-      // 【1段目】大手の ipinfo.io を叩く
-      fetch('https://ipinfo.io/json')
-        .then(response => response.json())
-        .then(data => {
-          const userLocation = (data.region && data.city) ? `${data.region}, ${data.city}` : "不明";
-          executeSend(userLocation);
-        })
-        .catch(error1 => {
-          console.warn("ipinfo取得失敗、予備APIに切り替えます:", error1);
-          
-          // 【2段目】失敗したら geojs を叩く
-          fetch('https://get.geojs.io/v1/ip/geo.json')
-            .then(response => response.json())
-            .then(data => {
-              const userLocation = (data.region && data.city) ? `${data.region}, ${data.city}` : "不明";
-              executeSend(userLocation);
-            })
-            .catch(error2 => {
-              console.error("両方のAPIがブロックされました:", error2);
-              executeSend("取得不可(広告ブロッカー等)");
-            });
-        });
+      fetch('https://ipinfo.io/json').then(res => res.json()).then(data => {
+        executeSend((data.region && data.city) ? `${data.region}, ${data.city}` : "不明");
+      }).catch(() => {
+        fetch('https://get.geojs.io/v1/ip/geo.json').then(res => res.json()).then(data => {
+          executeSend((data.region && data.city) ? `${data.region}, ${data.city}` : "不明");
+        }).catch(() => executeSend("取得不可"));
+      });
 
-      // 実際にGASへ送信する処理
       function executeSend(loc) {
         const payload = {
           name: userName,
           location: loc,
           champion: championName,
           score_summary: summaryStr,
-          answers: answersArr
+          answers: answersArr,
+          final_percent: finalPercent,     // ここで送信
+          click_count: finalClickCount     // ここで送信
         };
-
-        fetch(GAS_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' }, 
-          body: JSON.stringify(payload)
-        }).then(res => console.log("GAS送信成功"))
-          .catch(err => console.error("GAS送信エラー", err));
+        fetch(GAS_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) })
+        .then(() => console.log("Success")).catch(() => console.error("Error"));
       }
     }
-
   </script>
 </body>
 </html>
