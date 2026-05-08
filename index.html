@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+  <title>LoL 魂のチャンピオン診断 完全版</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ＝＝＝ 変数定義（LoLカラーパレット） ＝＝＝ */
+    :root {
+      --gold-1: #c8aa6e;
+      --gold-2: #f0e6d2;
+      --gold-3: #a09b8c;
+      --blue-1: #091428;
+      --blue-2: #0a1428;
+      --blue-3: #1e2328;
+      --blue-4: #010a13;
+      --cyan: #0ac8b9;
+      --danger: #e84057;
+      --magic: #27ae60;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background-color: var(--blue-4); 
+      background-image: radial-gradient(circle at top, var(--blue-2) 0%, var(--blue-4) 70%);
+      color: var(--gold-2);
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    h1, h2, h3 { 
+      font-family: 'Cinzel', serif; 
+      color: var(--gold-1); 
+      text-shadow: 0 0 10px rgba(200, 170, 110, 0.3);
+      letter-spacing: 2px;
+    }
+
+    /* 上部固定プログレスバー */
+    #progress-wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(10, 20, 40, 0.95);
+      backdrop-filter: blur(5px);
+      z-index: 99999;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--gold-1);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+    }
+    #progress-wrapper.hidden { display: none !important; }
+    #progress-container {
+      width: 100%; max-width: 540px; height: 6px; 
+      background-color: var(--blue-1); border-radius: 3px; 
+      margin: 0 auto; overflow: hidden; border: 1px solid #333;
+    }
+    #progress-bar {
+      width: 0%; height: 100%; 
+      background: linear-gradient(90deg, #8a6c32, var(--gold-1), var(--gold-2));
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+      box-shadow: 0 0 10px var(--gold-1);
+    }
+
+    #app {
+      width: 100%; max-width: 600px;
+      background: rgba(10, 20, 40, 0.85); backdrop-filter: blur(10px);
+      padding: 30px; border-radius: 4px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(200, 170, 110, 0.1);
+      border: 1px solid var(--gold-1); position: relative;
+      margin: 60px 20px 20px 20px;
+    }
+    
+    #app::before, #app::after {
+      content: ''; position: absolute; width: 15px; height: 15px; border: 2px solid var(--gold-1);
+    }
+    #app::before { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+    #app::after { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+
+    .hidden { display: none !important; }
+
+    /* 入力フォーム */
+    .input-group { margin-bottom: 30px; text-align: left; }
+    .input-group label { display: block; color: var(--gold-1); margin-bottom: 8px; font-weight: bold; font-size: 0.95em; }
+    .input-group input { width: 100%; padding: 15px; background: rgba(0,0,0,0.5); border: 1px solid var(--gold-3); color: white; border-radius: 4px; font-size: 1.1em; box-sizing: border-box; outline: none; }
+    .input-group input:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(10, 200, 185, 0.3); }
+
+    /* ボタン共通 */
+    .action-btn {
+      position: relative; background: linear-gradient(180deg, #1e283d, #0a1428); color: var(--gold-2);
+      border: 1px solid var(--gold-1); padding: 16px 30px; font-size: 1.1em; letter-spacing: 1px;
+      border-radius: 2px; cursor: pointer; margin-top: 10px; transition: all 0.3s ease;
+      font-weight: bold; width: 100%; max-width: 320px; overflow: hidden;
+    }
+    .action-btn::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(200, 170, 110, 0.4), transparent); transition: 0.5s;
+    }
+    .action-btn:hover::before { left: 100%; }
+    .action-btn:hover { background: linear-gradient(180deg, #2a3852, #12213d); box-shadow: 0 0 15px rgba(200, 170, 110, 0.4); text-shadow: 0 0 5px var(--gold-2); }
+    .action-btn:active { transform: scale(0.97); }
+    .btn-gold { background: linear-gradient(180deg, #d4b87e, #a38549); color: #010a13; border: 1px solid #f0e6d2; }
+    .btn-gold:hover { background: linear-gradient(180deg, #eaddaa, #c8aa6e); color: #000; box-shadow: 0 0 20px rgba(200, 170, 110, 0.6); }
+    .btn-gray { background: transparent; color: var(--gold-3); border: 1px solid #555; }
+    .btn-gray:hover { border-color: var(--gold-1); color: var(--gold-1); }
+
+    /* 質問 */
+    .question-block { margin-bottom: 40px; text-align: left; }
+    .question-text { font-size: 1.1em; margin-bottom: 20px; font-weight: bold; color: var(--gold-1); line-height: 1.5; border-bottom: 1px solid rgba(200, 170, 110, 0.2); padding-bottom: 10px; }
+    .choice-btn {
+      display: block; width: 100%; padding: 18px 20px; margin-bottom: 12px; background: rgba(30, 35, 40, 0.5); color: var(--gold-2); 
+      border: 1px solid #3a424e; border-left: 4px solid #3a424e; border-radius: 2px; cursor: pointer; font-size: 0.95em; transition: all 0.2s ease; text-align: left; position: relative;
+    }
+    .choice-btn:hover:not(.dimmed) { background: rgba(200, 170, 110, 0.1); border-color: var(--gold-1); border-left-color: var(--gold-1); }
+    .choice-btn.selected { background: rgba(200, 170, 110, 0.15); color: #fff; transform: translateX(5px); border: 1px solid var(--gold-1); border-left: 4px solid var(--cyan); box-shadow: 0 0 15px rgba(10, 200, 185, 0.2); }
+    .choice-btn.selected::after { content: '◆'; position: absolute; right: 20px; color: var(--cyan); font-size: 1.2em; }
+    .choice-btn.dimmed { opacity: 0.3; transform: scale(0.98); }
+    #quiz-buttons { display: flex; gap: 15px; justify-content: center; margin-top: 30px; }
+
+    /* ＝＝＝ ミニゲーム 円形UI版 ＝＝＝ */
+    #minigame-screen h2 { font-size: 1.6em; margin-bottom: 5px; }
+    #minigame-screen p { color:var(--gold-3); line-height: 1.4; margin-bottom: 15px; font-size: 0.9em; }
+    
+    #circle-ui-container {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin: 10px auto 30px;
+    }
+    
+    /* 100%の目印 */
+    #target-marker {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 24px;
+      background: var(--danger);
+      box-shadow: 0 0 10px var(--danger);
+      z-index: 10;
+      border-radius: 2px;
+    }
+
+    /* 円形ゲージの外枠 */
+    #circle-progress {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(var(--cyan) 0deg, transparent 0deg);
+      box-shadow: 0 0 20px rgba(10, 200, 185, 0.2), inset 0 0 20px rgba(10, 200, 185, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* うっすら見えるゲージの背景軌道 */
+    #circle-progress::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%; border: 4px solid rgba(10, 200, 185, 0.1); pointer-events: none;
+    }
+
+    /* ゲージの内側（黒い円） */
+    #circle-inner {
+      width: 180px;
+      height: 180px;
+      background: var(--blue-2);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9), 0 0 15px rgba(0,0,0,0.6);
+      border: 2px solid var(--gold-3);
+      z-index: 2;
+      transition: border-color 0.2s;
+    }
+
+    /* 中心テキスト */
+    #current-percent {
+      font-size: 4.5em;
+      font-family: 'Cinzel', serif;
+      color: var(--cyan);
+      font-weight: bold;
+      text-shadow: 0 0 20px rgba(10, 200, 185, 0.5);
+      line-height: 1;
+      margin-top: 10px;
+    }
+    #timer-display {
+      font-size: 1.4em;
+      font-family: 'Courier New', Courier, monospace;
+      color: var(--gold-2);
+      margin-top: 5px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    /* 100%オーバー時の赤色化クラス */
+    .overcharged-ring {
+      box-shadow: 0 0 30px rgba(232, 64, 87, 0.5), inset 0 0 20px rgba(232, 64, 87, 0.5) !important;
+    }
+    .overcharged-inner { border-color: var(--danger) !important; }
+
+    /* タイマーの警告アニメーション */
+    .timer-danger { color: var(--danger) !important; animation: pulse 0.5s infinite; text-shadow: 0 0 15px var(--danger); }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+    /* ボタン系 */
+    #pour-btn { background: linear-gradient(180deg, var(--cyan), #005a82); color: white; width: 90%; padding: 18px; font-size: 1.2em; border-radius: 50px; border: 2px solid #fff; font-weight: bold; box-shadow: 0 0 20px rgba(10, 200, 185, 0.4); opacity: 0.5; pointer-events: none; margin: 0 auto; display: block; touch-action: manipulation; cursor: pointer; letter-spacing: 2px; user-select: none; }
+    #pour-btn.active { opacity: 1; pointer-events: auto; animation: btnFloat 2s infinite ease-in-out; }
+    #pour-btn:active { transform: scale(0.95); box-shadow: 0 0 10px rgba(10, 200, 185, 0.4); animation: none; }
+    @keyframes btnFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(10, 200, 185, 0.6); } }
+    #minigame-result-msg { font-size: 1.3em; font-weight: bold; color: #fff; margin-bottom: 10px; text-shadow: 0 0 10px var(--gold-1); opacity: 0; transition: opacity 0.5s; height: 25px; }
+
+    /* 結果画面 UI */
+    #result-image-container { position: relative; width: 160px; height: 160px; margin: 40px auto 30px; }
+    #result-image-container::before { content: ''; position: absolute; top: -15px; left: -15px; right: -15px; bottom: -15px; border: 3px dashed var(--gold-1); border-radius: 50%; animation: rotate 20s linear infinite; opacity: 0.5; pointer-events: none; }
+    @keyframes rotate { 100% { transform: rotate(360deg); } }
+    #result-champ-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 4px solid var(--gold-1); box-shadow: 0 0 30px rgba(200, 170, 110, 0.4); position: relative; z-index: 5; display: block; box-sizing: border-box; }
+    
+    #result-name-display { font-size: 1.2em; color: var(--gold-2); margin-bottom: 5px; }
+    #result-champ-name { font-size: 2.6em; color: var(--gold-2); margin: 5px 0 15px; font-weight: bold; letter-spacing: 3px; text-shadow: 0 0 15px rgba(200, 170, 110, 0.5); }
+    #result-title { font-size: 1.1em; color: var(--gold-1); letter-spacing: 2px; }
+    #result-description { color: var(--gold-3); margin: 0 10px 30px; line-height: 1.8; font-size: 1.05em; }
+    
+    #result-stats { text-align: left; background: rgba(0,0,0,0.4); padding: 30px 20px; border-radius: 4px; border: 1px solid #333; margin-bottom: 40px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+    .stat-row { margin-bottom: 22px; }
+    .stat-labels { display: flex; justify-content: space-between; font-size: 0.85em; margin-bottom: 8px; letter-spacing: 1px; font-weight:bold; }
+    .stat-bar-bg { position: relative; width: 100%; height: 8px; background: #111; border-radius: 4px; border: 1px solid #333; }
+    .stat-bar-fill { position: absolute; height: 100%; opacity: 0.4; border-radius: 4px; }
+    .stat-center-line { position: absolute; left: 50%; width: 2px; height: 16px; top: -5px; background: rgba(255,255,255,0.2); }
+    .stat-marker { position: absolute; top: -6px; width: 18px; height: 18px; background: var(--gold-1); border-radius: 50%; transform: translateX(-50%); box-shadow: 0 0 10px var(--gold-1); border: 2px solid #fff; z-index: 2;}
+  </style>
+</head>
+<body>
+
+  <div id="progress-wrapper" class="hidden">
+    <div id="progress-container"><div id="progress-bar"></div></div>
+  </div>
+
+  <main id="app">
+    <section id="start-screen">
+      <div style="margin-bottom: 30px;">
+        <img src="https://ddragon.leagueoflegends.com/cdn/14.21.1/img/profileicon/29.png" alt="logo" style="width:110px; border-radius:50%; border:3px solid var(--gold-1); box-shadow: 0 0 20px rgba(200, 170, 110, 0.3);">
+      </div>
+      <h1 style="font-size: 2.2em; margin-bottom: 15px;">魂のチャンピオン診断</h1>
+      <p style="color: var(--gold-3); line-height: 1.8; margin-bottom: 30px; font-size: 1.05em;">
+        全24問の心理テストと「リミットテスト」で<br>
+        <span style="color:var(--gold-1); font-weight:bold;">運命のチャンピオン</span>を導き出します。
+      </p>
+
+      <div class="input-group">
+        <label for="user-name">プレイヤーネーム</label>
+        <input type="text" id="user-name" placeholder="二階堂流し満貫" maxlength="20">
+      </div>
+      <button class="action-btn btn-gold" onclick="startQuiz()">診断を開始する</button>
+    </section>
+
+    <section id="quiz-screen" class="hidden">
+      <div id="question-container"></div>
+      
+      <div id="quiz-buttons">
+        <button id="prev-btn" class="action-btn btn-gray" onclick="goToPrevPage()">◀ 前へ</button>
+        <button id="next-btn" class="action-btn" onclick="goToNextPage()">次へ ▶</button>
+      </div>
+    </section>
+
+    <section id="minigame-screen" class="hidden">
+      <h2>最終試練：リミットテスト</h2>
+      <p>
+        制限時間は<strong style="color:var(--danger); font-size:1.1em;">4秒</strong>。<br>
+        <span style="color:var(--cyan); font-weight:bold;">「注ぐ」を長押しし、100%ジャストを狙え！</span>
+      </p>
+      
+      <div id="minigame-result-msg"></div>
+      
+      <div id="circle-ui-container">
+        <div id="target-marker"></div>
+        
+        <div id="circle-progress">
+          <div id="circle-inner">
+            <div id="current-percent">0<span style="font-size: 0.4em;">%</span></div>
+            <div id="timer-display">4.00</div>
+          </div>
+        </div>
+      </div>
+
+      <button id="start-minigame-btn" class="action-btn btn-gold" onclick="runMinigame()">テストを開始する</button>
+      <button id="pour-btn" class="hidden">魔力を注ぐ (HOLD)</button>
+    </section>
+
+    <section id="result-screen" class="hidden">
+      <h2 style="font-size: 1.3em; color: var(--gold-3); margin-bottom: 0;">あなたの魂のチャンピオンは…</h2>
+      <div id="result-image-container"><img id="result-champ-img" src="" alt="champion"></div>
+      <div id="result-name-display"><span id="display-user-name" style="color:#fff; font-weight:bold;"></span> に導かれし者</div>
+      <div id="result-title">称号</div>
+      <div id="result-champ-name">チャンピオン名</div>
+      <p id="result-role" style="color: var(--cyan); margin-bottom: 15px; font-size: 1.1em; font-weight:bold; letter-spacing: 1px;"></p>
+      <p id="result-description">説明文</p>
+      
+      <h3 style="font-size: 1.4em; text-align: center; margin-bottom: 20px; border-bottom: 1px solid rgba(200, 170, 110, 0.3); padding-bottom: 10px;">プレイスタイル分析</h3>
+      <div id="result-stats"></div>
+      
+      <button class="action-btn btn-gold" onclick="location.reload()">もう一度診断する</button>
+    </section>
+
+  </main>
+
+  <script>
+    // ※ ここにご指定のURLを設定済みです！
+    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxtbmCM5ElVC3kGYu2hUcMgmQbsU8bvxN4AL6vd2GAX_RnzKDjt7kK9_sesQ5PNOr26/exec";
+
+    // 6軸のステータスキー定義
+    const questions = [
+      { id: 1, text: "Q1. 朝、目覚まし時計が鳴りました。あなたの行動は？", choices: [
+        { text: "鳴る前に起きて準備万端", stats: { valMacro: 2, valLate: -2 } },
+        { text: "鳴った瞬間に飛び起きる", stats: { valMacro: -1, valLate: -1, valImmobile: -1 } },
+        { text: "スヌーズを5回繰り返して粘る", stats: { valLate: 1, valImmobile: 1, valSustain: 1 } },
+        { text: "目覚ましを破壊して二度寝する", stats: { valTeam: -2, valMacro: -2, valRange: -1 } }
+      ]},
+      { id: 2, text: "Q2. スーパーのレジ待ち。前の人が小銭をぶちまけました。どうする？", choices: [
+        { text: "「大丈夫ですか？」と真っ先に一緒に拾う", stats: { valTeam: 2, valRange: -1, valSustain: 1 } },
+        { text: "黙って拾い終わるのを静かに見守る", stats: { valMacro: 1, valRange: 2, valImmobile: 1 } },
+        { text: "舌打ちして隣のレジへ即移動する", stats: { valTeam: -1, valLate: -2, valImmobile: -1 } },
+        { text: "どさくさに紛れて自分のポケットに入れる", stats: { valTeam: -2, valMacro: -2, valSustain: -1 } },
+        { text: "「あ、あっちにも転がっていきましたよ」と適当な嘘", stats: { valTeam: -1, valMacro: -2, valRange: 2 } }
+      ]},
+      { id: 3, text: "Q3. 宝くじで1億円当たりました。使い道は？", choices: [
+        { text: "全額貯金して資産運用を計画する", stats: { valMacro: 2, valLate: 2, valImmobile: 1 } },
+        { text: "家族や世話になった人に豪華なプレゼント", stats: { valTeam: 2, valSustain: 1 } },
+        { text: "欲しかった高級車と家を即買いする", stats: { valTeam: -1, valLate: -2, valSustain: -1 } },
+        { text: "カジノに行って全額倍押し勝負に出る", stats: { valTeam: -2, valMacro: -2, valImmobile: -2 } }
+      ]},
+      { id: 4, text: "Q4. 新しい家電を買いました。説明書はどう読む？", choices: [
+        { text: "最初から最後まで熟読してから触る", stats: { valMacro: 2, valLate: 1, valImmobile: 1 } },
+        { text: "分からない所だけ辞書的に引く", stats: { valMacro: 1, valSustain: 1 } },
+        { text: "図解だけ見てなんとなく把握する", stats: { valMacro: -1, valImmobile: -1 } },
+        { text: "読まずにとりあえず適当にボタンを押す", stats: { valMacro: -2, valLate: -2, valSustain: -1 } },
+        { text: "誰かに設定を全部やらせて、使い方だけ教わる", stats: { valTeam: -2, valImmobile: 2 } }
+      ]},
+      { id: 5, text: "Q5. グループでの旅行。あなたの役割は？", choices: [
+        { text: "完璧な分刻みのしおりを作る", stats: { valMacro: 2, valImmobile: 1, valLate: 1 } },
+        { text: "運転や荷物持ちを率先してやる", stats: { valTeam: 2, valRange: -2, valSustain: 1 } },
+        { text: "行きたい所だけわがままに指定する", stats: { valTeam: -2, valLate: -1, valSustain: -1 } },
+        { text: "当日の気分で勝手に行き先を変える", stats: { valMacro: -2, valImmobile: -2 } }
+      ]},
+      { id: 6, text: "Q6. 目の前に「絶対に押すな」というボタンがあります。", choices: [
+        { text: "触れずにその場を立ち去る", stats: { valMacro: 2, valRange: 2, valLate: 1 } },
+        { text: "誰かに押させて安全か様子を見る", stats: { valTeam: -1, valMacro: 1, valRange: 1 } },
+        { text: "警告の意味や構造をじっくり考察する", stats: { valMacro: 1, valImmobile: 2 } },
+        { text: "迷わず連打して何が起きるか楽しむ", stats: { valTeam: -2, valMacro: -2, valRange: -2 } },
+        { text: "ボタンと一緒に自撮りだけして帰る", stats: { valMacro: -1, valImmobile: -2, valRange: 1 } }
+      ]},
+      { id: 7, text: "Q7. 迷子の子犬を見つけました。", choices: [
+        { text: "保健所や警察に連絡し、最善の対応をとる", stats: { valMacro: 1, valTeam: 1, valImmobile: 1 } },
+        { text: "飼い主が見つかるまで自宅で大事に育てる", stats: { valTeam: 2, valLate: 1, valSustain: 2 } },
+        { text: "誰か拾うだろうと可哀想だがスルーする", stats: { valTeam: -1, valRange: 1, valLate: -1 } },
+        { text: "猛獣に育つようスパルタで鍛え上げる", stats: { valTeam: -2, valMacro: -2, valRange: -1 } }
+      ]},
+      { id: 8, text: "Q8. カフェで注文と違う品が来ました。", choices: [
+        { text: "「これ違います」とはっきり指摘して替えてもらう", stats: { valTeam: -1, valMacro: -1, valRange: -1 } },
+        { text: "申し訳ないので何も言わずにそのまま食べる", stats: { valTeam: 2, valImmobile: 1, valLate: 1 } },
+        { text: "店員のミスを論理的に詰め寄る", stats: { valMacro: 2, valSustain: -1, valLate: -1 } },
+        { text: "自分の注文を忘れたフリをして楽しむ", stats: { valMacro: -2, valImmobile: -2 } },
+        { text: "「違います」と返金させつつ、間違った品も食べる", stats: { valTeam: -2, valLate: -2, valRange: -2 } }
+      ]},
+      { id: 9, text: "Q9. 格闘ゲームでキャラを選ぶ基準は？", choices: [
+        { text: "見た目が美しい、または遠距離から魔法を撃つキャラ", stats: { valRange: 2, valLate: 1, valImmobile: 1 } },
+        { text: "圧倒的なコンボを叩き込む操作が難しいキャラ", stats: { valMacro: -2, valSustain: -2, valImmobile: -1 } },
+        { text: "とにかく死なない体力自慢の重戦車キャラ", stats: { valRange: -2, valSustain: 2, valImmobile: 1 } },
+        { text: "相手を煽り、嫌がらせをするトリッキーなキャラ", stats: { valTeam: -2, valImmobile: -2, valRange: 1 } }
+      ]},
+      { id: 10, text: "Q10. 大事なプレゼンの直前、PCがフリーズ！", choices: [
+        { text: "予備の紙資料を取り出し、冷静に開始する", stats: { valMacro: 2, valLate: 1, valSustain: 1 } },
+        { text: "必死に謝罪して時間を稼ぐ", stats: { valTeam: 1, valImmobile: 2, valRange: 1 } },
+        { text: "叩いて物理的に直そうとする", stats: { valMacro: -2, valRange: -2, valSustain: -1 } },
+        { text: "そのままアドリブで喋り倒す", stats: { valTeam: -1, valImmobile: -2, valLate: -1 } },
+        { text: "同僚のせいにして責任逃れをする", stats: { valTeam: -2, valMacro: -1, valRange: 2 } }
+      ]},
+      { id: 11, text: "Q11. 怒っている時のあなたは？", choices: [
+        { text: "言葉を詰めて相手を理詰めで追い詰める", stats: { valMacro: 2, valSustain: -2, valRange: -1 } },
+        { text: "沈黙を貫き、冷たいプレッシャーを与える", stats: { valRange: 2, valLate: 2, valImmobile: 1 } },
+        { text: "大声を出して物にあたる、暴れる", stats: { valTeam: -2, valMacro: -2, valRange: -2 } },
+        { text: "笑顔のまま裏で陰湿な復讐を計画する", stats: { valTeam: -1, valLate: -2, valImmobile: -1 } }
+      ]},
+      { id: 12, text: "Q12. サバイバル生活、一番大事なのは？", choices: [
+        { text: "水と食料の計画的な備蓄", stats: { valMacro: 2, valLate: 2, valImmobile: 1 } },
+        { text: "仲間と協力し合う信頼関係", stats: { valTeam: 2, valRange: -1, valSustain: 1 } },
+        { text: "獲物を狩るための圧倒的な暴力", stats: { valTeam: -1, valLate: -2, valSustain: -1 } },
+        { text: "どこに何があるか察知する野生の勘", stats: { valMacro: -2, valImmobile: -2, valRange: -1 } },
+        { text: "他人が集めた物資を奪うための罠づくり", stats: { valTeam: -2, valMacro: 1, valRange: 2 } }
+      ]},
+      { id: 13, text: "Q13. デスゲームに巻き込まれました。最初の行動は？", choices: [
+        { text: "状況を分析し、脱出経路をこっそり探る", stats: { valMacro: 2, valRange: 1, valImmobile: -1 } },
+        { text: "弱そうな奴らと手を組んでお互いを守る", stats: { valTeam: 1, valSustain: 2, valImmobile: 1 } },
+        { text: "一番強い奴に媚びを売って生き延びる", stats: { valTeam: -1, valImmobile: -1, valLate: 1 } },
+        { text: "とりあえず一番うるさい奴を率先して消す", stats: { valTeam: -2, valLate: -2, valSustain: -2 } }
+      ]},
+      { id: 14, text: "Q14. 自分の命と引き換えに世界を救えるとしたら？", choices: [
+        { text: "喜んで世界の犠牲になる", stats: { valTeam: 2, valRange: -2, valLate: 1 } },
+        { text: "誰も死なない解決策をギリギリまで考える", stats: { valMacro: 2, valLate: 2, valImmobile: 1 } },
+        { text: "世界を滅ぼして自分だけ生き残る", stats: { valTeam: -2, valSustain: -2, valLate: -1 } },
+        { text: "誰か他の奴を身代わりにして逃げる", stats: { valTeam: -2, valMacro: -2, valImmobile: -2 } },
+        { text: "敵と交渉して自分だけ見逃してもらう", stats: { valMacro: 1, valRange: 2, valImmobile: -1 } }
+      ]},
+      { id: 15, text: "Q15. あなたにとっての「勝利」とは？", choices: [
+        { text: "完璧な計画通りに物事が進んだ結果", stats: { valMacro: 2, valLate: 1, valImmobile: 1 } },
+        { text: "仲間全員が笑って終われたこと", stats: { valTeam: 2, valSustain: 2, valRange: 1 } },
+        { text: "相手が絶望し、プライドを完全に砕くこと", stats: { valTeam: -2, valSustain: -2, valLate: -1 } },
+        { text: "誰も予想できない奇跡やスーパープレイを起こす", stats: { valMacro: -2, valImmobile: -2, valRange: -1 } }
+      ]},
+      { id: 16, text: "Q16. ゾンビパンデミック発生！武器を1つ選ぶなら？", choices: [
+        { text: "遠くから安全に狙撃できるライフル", stats: { valMacro: 1, valRange: 2, valLate: 1 } },
+        { text: "噛まれても平気な頑丈な盾と鎧", stats: { valTeam: 1, valRange: -1, valSustain: 2 } },
+        { text: "振り回せば最強のチェーンソー", stats: { valTeam: -1, valRange: -2, valSustain: -1 } },
+        { text: "派手に周囲ごと吹き飛ばす手製爆弾", stats: { valMacro: -2, valSustain: -2, valLate: -2 } },
+        { text: "他の生存者を囮に使うためのロープ", stats: { valTeam: -2, valMacro: 1, valRange: 2 } }
+      ]},
+      { id: 17, text: "Q17. スポーツの試合。残り10秒で逆転のチャンス。", choices: [
+        { text: "確実に点が入るまで安全にパスを回す", stats: { valMacro: 1, valLate: 2, valImmobile: 1 } },
+        { text: "一番才能のある味方にボールを託す", stats: { valTeam: 2, valRange: 1, valSustain: 1 } },
+        { text: "自分で強引に突っ込んでシュートを打つ", stats: { valTeam: -2, valRange: -2, valSustain: -2 } },
+        { text: "変なフェイントを入れて相手を混乱させる", stats: { valMacro: -2, valImmobile: -2, valLate: -1 } }
+      ]},
+      { id: 18, text: "Q18. 敵の罠にかかって完全に囲まれました！", choices: [
+        { text: "弱点を見つけるまでひたすら防御に徹する", stats: { valMacro: 1, valLate: 1, valImmobile: 2 } },
+        { text: "味方を逃がすために自分が盾になる", stats: { valTeam: 2, valRange: -2, valSustain: 1 } },
+        { text: "刺し違えてでも確実に1人道連れにする", stats: { valTeam: -2, valSustain: -2, valRange: -1 } },
+        { text: "隙間を縫ってアクロバティックに逃げ出す", stats: { valMacro: -2, valImmobile: -2, valLate: -1 } },
+        { text: "死んだフリをしてやり過ごす", stats: { valMacro: -1, valRange: 2, valLate: 2 } }
+      ]},
+      { id: 19, text: "Q19. 手に入れたい伝説の武器は？", choices: [
+        { text: "使うほど持ち主が賢くなる魔導書", stats: { valMacro: 2, valLate: 2, valRange: 1 } },
+        { text: "周りの人間を無尽蔵に癒やす聖杯", stats: { valTeam: 2, valRange: 2, valSustain: 2 } },
+        { text: "一振りで山を砕く巨大な大剣", stats: { valTeam: -1, valRange: -2, valSustain: -2 } },
+        { text: "触れるたびに形が変わる変幻自在の刃", stats: { valMacro: -2, valImmobile: -2, valLate: -1 } }
+      ]},
+      { id: 20, text: "Q20. RPGで新しい街に到着しました。まず何をする？", choices: [
+        { text: "隅々まで探索してアイテムを回収する", stats: { valMacro: 2, valLate: 1, valImmobile: -1 } },
+        { text: "宿屋で仲間を休ませて回復する", stats: { valTeam: 2, valSustain: 2, valImmobile: 1 } },
+        { text: "武器屋に直行して一番強い武器を買う", stats: { valTeam: -2, valSustain: -1, valLate: -2 } },
+        { text: "情報も集めずにすぐ次のダンジョンへ向かう", stats: { valMacro: -2, valImmobile: -2, valLate: -1 } },
+        { text: "街の住人に片っ端からイタズラして回る", stats: { valTeam: -2, valMacro: -2, valImmobile: -2 } }
+      ]},
+      { id: 21, text: "Q21. ボードゲーム等で、絶対に勝てない状況に陥りました。", choices: [
+        { text: "「負けました」と潔く投了して次のゲームへ", stats: { valMacro: 2, valLate: -2, valRange: 1 } },
+        { text: "1%の奇跡を信じて最後まで真面目に足掻く", stats: { valMacro: 1, valLate: 2, valSustain: 1 } },
+        { text: "盤面をひっくり返して台無しにする", stats: { valTeam: -2, valRange: -2, valSustain: -2 } },
+        { text: "勝負を放棄し、ひたすらトップの邪魔をする", stats: { valTeam: -2, valMacro: -2, valImmobile: -1 } },
+        { text: "飽きてスマホをいじり始める", stats: { valMacro: -1, valRange: 2, valImmobile: 2 } }
+      ]},
+      { id: 22, text: "Q22. 「誰かの高級プリン」をうっかり食べてしまいました。", choices: [
+        { text: "すぐに謝り、急いで同じものを買って返す", stats: { valTeam: 2, valRange: -1, valSustain: 1 } },
+        { text: "ゴミを完全に処分し、証拠隠滅して迷宮入りさせる", stats: { valMacro: 1, valLate: 1, valRange: 2 } },
+        { text: "「名前を書いてない方が悪い」と堂々と開き直る", stats: { valTeam: -2, valSustain: -1, valRange: -1 } },
+        { text: "「野良猫が食べた」と適当な嘘をつく", stats: { valTeam: -2, valMacro: -2, valImmobile: -2 } },
+        { text: "バレる前に安いプリンを代わりに置いておく", stats: { valMacro: 1, valRange: 1, valLate: -1 } }
+      ]},
+      { id: 23, text: "Q23. あなたが一番恐怖を感じることは？", choices: [
+        { text: "自分の計画が根底から破綻すること", stats: { valMacro: 2, valLate: 1, valImmobile: 1 } },
+        { text: "仲間や大事な人から見捨てられること", stats: { valTeam: 2, valSustain: 2, valRange: 1 } },
+        { text: "誰にも注目されず、忘れ去られること", stats: { valTeam: -2, valSustain: -1, valRange: -1 } },
+        { text: "自由を奪われ、狭い場所に拘束されること", stats: { valMacro: -2, valImmobile: -2, valLate: -1 } }
+      ]},
+      { id: 24, text: "Q24. 最後の最後、運命を決めるのは？", choices: [
+        { text: "これまでの地道な積み重ねと準備", stats: { valMacro: 2, valLate: 2, valImmobile: 1 } },
+        { text: "仲間との強い絆と信頼関係", stats: { valTeam: 2, valSustain: 2, valRange: 1 } },
+        { text: "己の圧倒的な才能とパワー", stats: { valTeam: -2, valLate: -2, valSustain: -2 } },
+        { text: "その瞬間のひらめきと直感", stats: { valMacro: -2, valImmobile: -2, valRange: -1 } }
+      ]}
+    ];
+
+    // 5体のチャンピオンデータ
+    const allChampions = [
+      { name: "エイトロックス", id: "Aatrox", title: "ダーキンの凶剣", role: "Top", description: "圧倒的なサステインで敵陣で暴れ回る吸血鬼。", stats: { valMacro: -2, valTeam: -6, valLate: 0, valRange: -6, valImmobile: -2, valSustain: 6 } },
+      { name: "アーリ", id: "Ahri", title: "九尾の妖狐", role: "Mid", description: "高い機動力とチャームで敵を翻弄するメイジアサシン。", stats: { valMacro: 2, valTeam: 0, valLate: 0, valRange: 4, valImmobile: -8, valSustain: -6 } },
+      { name: "アカリ", id: "Akali", title: "流浪の暗殺者", role: "Mid", description: "煙幕に身を潜め、一瞬の隙を突いてキャリーを葬る。", stats: { valMacro: -4, valTeam: -8, valLate: -2, valRange: -8, valImmobile: -9, valSustain: -8 } },
+      { name: "アクシャン", id: "Akshan", title: "流浪の番人", role: "Mid", description: "味方を蘇生する特異な能力とステルスを持つローム型ADC。", stats: { valMacro: 2, valTeam: 6, valLate: -2, valRange: 6, valImmobile: -8, valSustain: -6 } },
+      { name: "アリスター", id: "Alistar", title: "ミノタウロス", role: "Support", description: "強引なエンゲージと鉄壁の防御で味方を守り抜く盾。", stats: { valMacro: 4, valTeam: 8, valLate: 2, valRange: -10, valImmobile: -4, valSustain: 6 } },
+      { name: "アムム", id: "Amumu", title: "めそめそミイラ", role: "Jungle", description: "広範囲のスタンで集団戦を一変させる孤独なミイラ。", stats: { valMacro: 6, valTeam: 8, valLate: 6, valRange: -8, valImmobile: 4, valSustain: 6 } },
+      { name: "アニビア", id: "Anivia", title: "氷晶の不死鳥", role: "Mid", description: "壁と吹雪で陣形を分断し、陣地防衛において右に出る者はいない。", stats: { valMacro: 8, valTeam: 4, valLate: 8, valRange: 6, valImmobile: 10, valSustain: 6 } },
+      { name: "アニー", id: "Annie", title: "闇の申し子", role: "Mid", description: "クマのティバーズと共に確定スタンを叩き込む高火力メイジ。", stats: { valMacro: -2, valTeam: -2, valLate: -2, valRange: 4, valImmobile: 6, valSustain: -8 } },
+      { name: "アフェリオス", id: "Aphelios", title: "信仰の武器", role: "ADC", description: "5つの武器を切り替えて戦う、極めて高度なマクロを要求される射手。", stats: { valMacro: 10, valTeam: -2, valLate: 10, valRange: 8, valImmobile: 8, valSustain: 6 } },
+      { name: "アッシュ", id: "Ashe", title: "フロストアーチャー", role: "ADC", description: "視界確保とスロウ、長距離スタンでチームを動かす司令塔。", stats: { valMacro: 8, valTeam: 6, valLate: 6, valRange: 8, valImmobile: 8, valSustain: 6 } },
+      { name: "オレリオン・ソル", id: "AurelionSol", title: "星を創りし者", role: "Mid", description: "時間を味方につけ、星を落として敵を粉砕するレイトキャリー。", stats: { valMacro: 6, valTeam: 2, valLate: 10, valRange: 8, valImmobile: 6, valSustain: 8 } },
+      { name: "アジール", id: "Azir", title: "砂漠の皇帝", role: "Mid", description: "砂の兵士を操り、圧倒的なDPSと陣形破壊をもたらす皇帝。", stats: { valMacro: 8, valTeam: 4, valLate: 10, valRange: 8, valImmobile: 2, valSustain: 8 } },
+      { name: "バード", id: "Bard", title: "流浪の世話人", role: "Support", description: "マップ中を旅して味方を救い、敵を大停滞させる予測不能な精霊。", stats: { valMacro: -6, valTeam: 6, valLate: 4, valRange: 4, valImmobile: -8, valSustain: -2 } },
+      { name: "ベル＝ヴェス", id: "Belveth", title: "ヴォイドの女帝", role: "Jungle", description: "攻撃速度を無限に高め、軍団を率いてオブジェクトを喰らい尽くす。", stats: { valMacro: 4, valTeam: -8, valLate: 8, valRange: -8, valImmobile: -4, valSustain: 8 } },
+      { name: "ブリッツクランク", id: "Blitzcrank", title: "偉大なるスチームゴーレム", role: "Support", description: "一発のフックで試合の運命を強制的に変えるロマン砲。", stats: { valMacro: -6, valTeam: 2, valLate: -4, valRange: 6, valImmobile: -2, valSustain: -8 } },
+      { name: "ブランド", id: "Brand", title: "復讐の炎", role: "Support", description: "パーセンテージダメージの炎を集団に燃え広がらせる歩く火力。", stats: { valMacro: -4, valTeam: -4, valLate: 6, valRange: 6, valImmobile: 8, valSustain: -6 } },
+      { name: "ブラウム", id: "Braum", title: "フレヨルドの漢", role: "Support", description: "巨大な盾で味方をあらゆる脅威から守り抜く頼もしい漢。", stats: { valMacro: 4, valTeam: 10, valLate: 4, valRange: -8, valImmobile: 6, valSustain: 6 } },
+      { name: "ブライアー", id: "Briar", title: "抑えきれぬ飢え", role: "Jungle", description: "狂乱状態となって敵に一直線に襲い掛かる制御不能の吸血鬼。", stats: { valMacro: -10, valTeam: -8, valLate: 0, valRange: -10, valImmobile: -8, valSustain: 4 } },
+      { name: "ケイトリン", id: "Caitlyn", title: "ピルトーヴァーの保安官", role: "ADC", description: "最長クラスの射程と罠で、安全圏からタワーを削り取る狙撃手。", stats: { valMacro: 6, valTeam: 0, valLate: 8, valRange: 10, valImmobile: 6, valSustain: 4 } },
+      { name: "カミール", id: "Camille", title: "鋼の暗殺者", role: "Top", description: "壁を蹴って飛来し、逃げ場のない檻にターゲットを閉じ込める。", stats: { valMacro: -2, valTeam: -4, valLate: 6, valRange: -6, valImmobile: -8, valSustain: -6 } },
+      { name: "カシオペア", id: "Cassiopeia", title: "蛇の抱擁", role: "Mid", description: "靴を履けない代わりに、毒と石化で圧倒的な持続火力を叩き出す。", stats: { valMacro: 4, valTeam: 0, valLate: 8, valRange: 6, valImmobile: 8, valSustain: 10 } },
+      { name: "チョ＝ガス", id: "Chogath", title: "ヴォイドの恐怖", role: "Top", description: "敵を喰らうごとに無限に巨大化し、圧倒的な体力で前線を支える。", stats: { valMacro: 2, valTeam: 4, valLate: 8, valRange: -6, valImmobile: 10, valSustain: 8 } },
+      { name: "コーキ", id: "Corki", title: "型破りな爆撃手", role: "Mid", description: "特別なお届け物で敵陣を焼き払い、遠距離からミサイルを連射する。", stats: { valMacro: 4, valTeam: 0, valLate: 8, valRange: 8, valImmobile: -2, valSustain: 6 } },
+      { name: "ダリウス", id: "Darius", title: "ノクサスの手", role: "Top", description: "出血スタックを溜めて断頭台へと送る、近接戦の絶対王者。", stats: { valMacro: -6, valTeam: -6, valLate: -2, valRange: -10, valImmobile: 6, valSustain: 6 } },
+      { name: "ダイアナ", id: "Diana", title: "嘲月の知恵", role: "Jungle", description: "月光を帯びて敵陣に突っ込み、一網打尽にするダイバー。", stats: { valMacro: -2, valTeam: -2, valLate: 2, valRange: -6, valImmobile: -6, valSustain: -6 } },
+      { name: "ドクター・ムンド", id: "DrMundo", title: "ゾウンの狂人", role: "Top", description: "自分の行きたい所へ行き、異常な回復力で全てを受け止める狂人。", stats: { valMacro: -8, valTeam: -2, valLate: 6, valRange: -8, valImmobile: 6, valSustain: 10 } },
+      { name: "ドレイヴン", id: "Draven", title: "栄光の処刑人", role: "ADC", description: "斧をキャッチし続け、圧倒的な火力で序盤から敵を粉砕するエゴの塊。", stats: { valMacro: -6, valTeam: -10, valLate: -6, valRange: 6, valImmobile: 4, valSustain: 6 } },
+      { name: "エコー", id: "Ekko", title: "時を越える少年", role: "Jungle", description: "時間を巻き戻す能力で、ハイリスクな暗殺を安全に完遂する。", stats: { valMacro: -2, valTeam: -4, valLate: 4, valRange: -6, valImmobile: -8, valSustain: -6 } },
+      { name: "エリス", id: "Elise", title: "蜘蛛の女王", role: "Jungle", description: "序盤のタワーダイブを得意とし、試合の主導権を握る蜘蛛。", stats: { valMacro: 6, valTeam: -2, valLate: -8, valRange: -4, valImmobile: -4, valSustain: -8 } },
+      { name: "イブリン", id: "Evelynn", title: "苦悶の抱擁", role: "Jungle", description: "常時ステルスから一瞬でキャリーを消し去り、再び闇へ消える。", stats: { valMacro: -4, valTeam: -8, valLate: 4, valRange: -6, valImmobile: -6, valSustain: -10 } },
+      { name: "エズリアル", id: "Ezreal", title: "流浪の探検家", role: "ADC", description: "高い機動力と遠距離ポークで、安全圏からダメージを出し続ける。", stats: { valMacro: 2, valTeam: -2, valLate: 2, valRange: 8, valImmobile: -8, valSustain: 4 } },
+      { name: "フィドルスティックス", id: "Fiddlesticks", title: "古の恐怖", role: "Jungle", description: "視界外からカラスの群れと共に飛び込み、敵集団に恐怖を与える。", stats: { valMacro: 8, valTeam: 4, valLate: 6, valRange: 4, valImmobile: -4, valSustain: -6 } },
+      { name: "フィオラ", id: "Fiora", title: "気高き決闘者", role: "Top", description: "敵の弱点を的確に突き、1対1のタイマンにおいて最強を誇る。", stats: { valMacro: -6, valTeam: -8, valLate: 8, valRange: -8, valImmobile: -6, valSustain: 4 } },
+      { name: "フィズ", id: "Fizz", title: "潮のトリックスター", role: "Mid", description: "無敵スキルで攻撃を躱し、巨大なサメを呼び出して敵を喰らう。", stats: { valMacro: -6, valTeam: -6, valLate: -2, valRange: -8, valImmobile: -8, valSustain: -8 } },
+      { name: "ガリオ", id: "Galio", title: "巨像の目覚め", role: "Mid", description: "遠くから空高く舞い上がり、味方の危機に駆けつける魔法の巨像。", stats: { valMacro: 6, valTeam: 8, valLate: 2, valRange: -6, valImmobile: -2, valSustain: 4 } },
+      { name: "ガングプランク", id: "Gangplank", title: "大海の厄災", role: "Top", description: "火薬樽を連鎖爆発させ、グローバルウルトでマップ全域を支配する。", stats: { valMacro: 8, valTeam: -2, valLate: 10, valRange: 4, valImmobile: 6, valSustain: -6 } },
+      { name: "ガレン", id: "Garen", title: "デマーシアの力", role: "Top", description: "シンプルな操作で敵陣を駆け抜け、正義の剣で悪を断つ。", stats: { valMacro: -4, valTeam: 0, valLate: 0, valRange: -10, valImmobile: -2, valSustain: 6 } },
+      { name: "ナー", id: "Gnar", title: "ミッシング・リンク", role: "Top", description: "怒りを溜めて巨大な獣に変身し、集団戦を壁ドンで破壊する。", stats: { valMacro: 6, valTeam: 4, valLate: 4, valRange: 2, valImmobile: -4, valSustain: 2 } },
+      { name: "グラガス", id: "Gragas", title: "トラブルメーカー", role: "Jungle", description: "爆発する酒樽で敵の陣形を散り散りにする、機動性の高い酔っ払い。", stats: { valMacro: 4, valTeam: 2, valLate: 2, valRange: -4, valImmobile: -4, valSustain: -4 } },
+      { name: "グレイブス", id: "Graves", title: "無法者", role: "Jungle", description: "ショットガンで敵とジャングルを素早く狩り尽くすエゴイスト。", stats: { valMacro: 4, valTeam: -6, valLate: 6, valRange: 2, valImmobile: -2, valSustain: 6 } },
+      { name: "グウェン", id: "Gwen", title: "聖なるお針子", role: "Top", description: "魔法の霧で身を守り、巨大なハサミでタンクすら切り刻む。", stats: { valMacro: 0, valTeam: -4, valLate: 8, valRange: -6, valImmobile: -4, valSustain: 6 } },
+      { name: "ヘカリム", id: "Hecarim", title: "戦の影", role: "Jungle", description: "圧倒的な移動速度でマップを駆け回り、敵陣を蹂躙する亡霊騎士。", stats: { valMacro: -4, valTeam: 2, valLate: 2, valRange: -8, valImmobile: -10, valSustain: 4 } },
+      { name: "ハイマーディンガー", id: "Heimerdinger", title: "誉れ高き発明家", role: "Mid", description: "タレットを並べて絶対防衛線を築き、敵の接近を許さない天才。", stats: { valMacro: 8, valTeam: 2, valLate: 4, valRange: 6, valImmobile: 10, valSustain: 8 } },
+      { name: "イラオイ", id: "Illaoi", title: "クラーケンの巫女", role: "Top", description: "触手を周囲に生やし、敵が多ければ多いほど力を発揮する教祖。", stats: { valMacro: 0, valTeam: 0, valLate: 6, valRange: -6, valImmobile: 10, valSustain: 10 } },
+      { name: "イレリア", id: "Irelia", title: "飛刃の舞手", role: "Top", description: "ミニオンを伝って流麗に舞い、無数の刃で敵を切り刻む。", stats: { valMacro: -4, valTeam: -4, valLate: 4, valRange: -6, valImmobile: -8, valSustain: 6 } },
+      { name: "アイバーン", id: "Ivern", title: "自然の父", role: "Jungle", description: "ジャングルのモンスターを傷つけず、味方を支援することに特化した木人。", stats: { valMacro: 8, valTeam: 10, valLate: 2, valRange: 4, valImmobile: 4, valSustain: 8 } },
+      { name: "ジャンナ", id: "Janna", title: "嵐の怒り", role: "Support", description: "竜巻と回復で味方をあらゆるダイブから守り抜く風の精霊。", stats: { valMacro: 6, valTeam: 10, valLate: 6, valRange: 6, valImmobile: 4, valSustain: 8 } },
+      { name: "ジャーヴァンIV", id: "JarvanIV", title: "デマーシアの鑑", role: "Jungle", description: "旗を突き立てて敵陣に突撃し、逃げ場のない闘技場を作り出す。", stats: { valMacro: 2, valTeam: 6, valLate: -2, valRange: -8, valImmobile: -6, valSustain: -2 } },
+      { name: "ジャックス", id: "Jax", title: "武器の達人", role: "Top", description: "通常攻撃を回避し、後半戦では誰も止められない無双の達人。", stats: { valMacro: -2, valTeam: -6, valLate: 10, valRange: -8, valImmobile: -4, valSustain: 6 } },
+      { name: "ジェイス", id: "Jayce", title: "未来の守護者", role: "Top", description: "ハンマーとキャノンを切り替え、遠距離ポークとバーストを両立する。", stats: { valMacro: 4, valTeam: -2, valLate: -2, valRange: 2, valImmobile: -2, valSustain: -6 } },
+      { name: "ジン", id: "Jhin", title: "魔劇の妖人", role: "ADC", description: "4発目の確定クリティカルに全てを懸ける、狂気の芸術家。", stats: { valMacro: 6, valTeam: 0, valLate: 4, valRange: 8, valImmobile: 6, valSustain: -8 } },
+      { name: "ジンクス", id: "Jinx", title: "暴走パンクガール", role: "ADC", description: "キルを取ると誰にも止められない理不尽な火力を出す。", stats: { valMacro: -6, valTeam: -4, valLate: 10, valRange: 8, valImmobile: 4, valSustain: 8 } },
+      { name: "カ・サンテ", id: "KSante", title: "ナズマーの誇り", role: "Top", description: "強固なタンクから一転、敵を壁ドンしてアサシンへと変貌する。", stats: { valMacro: 2, valTeam: 0, valLate: 6, valRange: -8, valImmobile: -4, valSustain: 4 } },
+      { name: "カイ＝サ", id: "Kaisa", title: "ヴォイドの娘", role: "ADC", description: "スキルを進化させ、敵のバックラインへ飛び込んで暗殺するADC。", stats: { valMacro: -2, valTeam: -4, valLate: 8, valRange: 4, valImmobile: -8, valSustain: -6 } },
+      { name: "カリスタ", id: "Kalista", title: "復讐の槍", role: "ADC", description: "攻撃するたびにステップを踏み、契約した味方と共に戦う。", stats: { valMacro: 4, valTeam: 4, valLate: -4, valRange: 6, valImmobile: -10, valSustain: 6 } },
+      { name: "カルマ", id: "Karma", title: "飛翔なる叡智", role: "Support", description: "マントラでスキルを強化し、序盤から圧倒的なポークとシールドを配る。", stats: { valMacro: 4, valTeam: 6, valLate: -2, valRange: 6, valImmobile: 2, valSustain: 4 } },
+      { name: "カーサス", id: "Karthus", title: "死を歌う者", role: "Jungle", description: "死してなお魔法を唱え、全敵へのグローバルウルトで命を刈り取る。", stats: { valMacro: 6, valTeam: -2, valLate: 10, valRange: 8, valImmobile: 10, valSustain: 8 } },
+      { name: "カサディン", id: "Kassadin", title: "ヴォイドウォーカー", role: "Mid", description: "最弱の序盤を耐え抜き、レベル16で空間を跳躍し続ける悪夢となる。", stats: { valMacro: 0, valTeam: -6, valLate: 10, valRange: -6, valImmobile: -10, valSustain: -6 } },
+      { name: "カタリナ", id: "Katarina", title: "凶刃の刺客", role: "Mid", description: "キルアシストでスキルが回り、集団戦を一瞬で崩壊させるコマ。", stats: { valMacro: -8, valTeam: -8, valLate: 2, valRange: -6, valImmobile: -10, valSustain: -8 } },
+      { name: "ケイル", id: "Kayle", title: "正義の具現者", role: "Top", description: "レベルアップで進化を遂げ、最終的に広範囲を焼き尽くす神となる。", stats: { valMacro: 4, valTeam: 2, valLate: 10, valRange: 6, valImmobile: 6, valSustain: 8 } },
+      { name: "ケイン", id: "Kayn", title: "無情の影", role: "Jungle", description: "壁をすり抜け、戦況に応じて暗殺者かファイターへと姿を変える。", stats: { valMacro: 0, valTeam: -4, valLate: 4, valRange: -6, valImmobile: -8, valSustain: 0 } },
+      { name: "ケネン", id: "Kennen", title: "雷雨の心", role: "Top", description: "雷を纏って敵陣のど真ん中に飛び込み、全体をスタンさせる忍者。", stats: { valMacro: 2, valTeam: 6, valLate: 4, valRange: 4, valImmobile: -6, valSustain: -6 } },
+      { name: "カ＝ジックス", id: "Khazix", title: "ヴォイドの捕食者", role: "Jungle", description: "孤立した獲物を狙い、ジャンプをリセットしながら連続暗殺する。", stats: { valMacro: -2, valTeam: -8, valLate: 2, valRange: -8, valImmobile: -8, valSustain: -8 } },
+      { name: "キンドレッド", id: "Kindred", title: "永遠なる狩人", role: "Jungle", description: "死の運命を操り、マークを集めて射程を無限に伸ばす射手。", stats: { valMacro: 6, valTeam: -2, valLate: 8, valRange: 6, valImmobile: -4, valSustain: 6 } },
+      { name: "クレッド", id: "Kled", title: "怒れる騎兵", role: "Top", description: "相棒のスカールと共に敵陣へ単騎突撃を仕掛ける狂気の将軍。", stats: { valMacro: -8, valTeam: 2, valLate: -2, valRange: -8, valImmobile: -6, valSustain: 4 } },
+      { name: "コグ＝マウ", id: "KogMaw", title: "深淵の口", role: "ADC", description: "味方の保護を前提に、超長射程から圧倒的な割合ダメージを吐き出す。", stats: { valMacro: 6, valTeam: -4, valLate: 10, valRange: 8, valImmobile: 10, valSustain: 8 } },
+      { name: "ルブラン", id: "Leblanc", title: "幻惑の奇術師", role: "Mid", description: "分身とワープを駆使し、敵を欺いて一撃離脱を繰り返す奇術師。", stats: { valMacro: -4, valTeam: -6, valLate: -4, valRange: 4, valImmobile: -10, valSustain: -8 } },
+      { name: "リー・シン", id: "LeeSin", title: "盲目の修行僧", role: "Jungle", description: "圧倒的なフィジカルで序盤を支配し、超機動力で敵を蹴り飛ばす。", stats: { valMacro: -6, valTeam: 0, valLate: -8, valRange: -8, valImmobile: -9, valSustain: -4 } },
+      { name: "レオナ", id: "Leona", title: "暁光の戦士", role: "Support", description: "恐れを知らぬ太陽の盾。一直線に突っ込んで無限のCCをかける。", stats: { valMacro: 0, valTeam: 8, valLate: 0, valRange: -8, valImmobile: -6, valSustain: 6 } },
+      { name: "リリア", id: "Lillia", title: "内気な夢の木", role: "Jungle", description: "驚異的な移動速度で駆け回り、敵全員を深い眠りに誘う小鹿。", stats: { valMacro: 2, valTeam: 4, valLate: 8, valRange: 2, valImmobile: -8, valSustain: 6 } },
+      { name: "リサンドラ", id: "Lissandra", title: "氷の魔女", role: "Mid", description: "自身を氷で包んで無敵になりつつ、周囲を凍結させるエンゲージャー。", stats: { valMacro: 4, valTeam: 6, valLate: 2, valRange: 4, valImmobile: -4, valSustain: -4 } },
+      { name: "ルシアン", id: "Lucian", title: "浄化の使徒", role: "ADC", description: "ステップと二丁拳銃を駆使し、序盤からアグレッシブに攻める射手。", stats: { valMacro: -2, valTeam: -2, valLate: -4, valRange: 4, valImmobile: -6, valSustain: -4 } },
+      { name: "ルル", id: "Lulu", title: "妖精の魔女", role: "Support", description: "味方を巨大化させ、キャリーを神へと変貌させる強力なエンチャンター。", stats: { valMacro: 4, valTeam: 8, valLate: 8, valRange: 6, valImmobile: 6, valSustain: 8 } },
+      { name: "ラックス", id: "Lux", title: "光の目覚め", role: "Support", description: "超長距離からのスネアと極太レーザーで安全圏から敵を消し飛ばす。", stats: { valMacro: 6, valTeam: 2, valLate: 4, valRange: 10, valImmobile: 8, valSustain: -8 } },
+      { name: "マルファイト", id: "Malphite", title: "モノリスの破片", role: "Top", description: "回避不能の打ち上げ突進で、集団戦の合図を鳴らす動く岩山。", stats: { valMacro: 6, valTeam: 8, valLate: 6, valRange: -8, valImmobile: -2, valSustain: -6 } },
+      { name: "マルザハール", id: "Malzahar", title: "ヴォイドの預言者", role: "Mid", description: "確定制圧スキルで相手のエースを完全に機能停止させるアンチキャリー。", stats: { valMacro: 8, valTeam: 4, valLate: 6, valRange: 6, valImmobile: 8, valSustain: 8 } },
+      { name: "マオカイ", id: "Maokai", title: "歪みし樹人", role: "Support", description: "苗木で視界を取り、巨大な根の波で広範囲の敵を絡めとる大樹。", stats: { valMacro: 8, valTeam: 8, valLate: 4, valRange: -6, valImmobile: 4, valSustain: 6 } },
+      { name: "マスター・イー", id: "MasterYi", title: "無極の剣客", role: "Jungle", description: "CCがなければ誰にも止められない、全てを切り刻むレイトキャリー。", stats: { valMacro: -6, valTeam: -10, valLate: 10, valRange: -8, valImmobile: -6, valSustain: 8 } },
+      { name: "ミリオ", id: "Milio", title: "心優しき炎", role: "Support", description: "味方の射程を伸ばし、広範囲のCC解除でチームを救う癒やしの炎。", stats: { valMacro: 6, valTeam: 10, valLate: 6, valRange: 6, valImmobile: 6, valSustain: 8 } },
+      { name: "ミス・フォーチュン", id: "MissFortune", title: "賞金稼ぎ", role: "ADC", description: "広範囲の銃弾の雨を降らせ、完璧な位置取りから集団戦を破壊する。", stats: { valMacro: 4, valTeam: 2, valLate: 4, valRange: 6, valImmobile: 8, valSustain: -6 } },
+      { name: "モルデカイザー", id: "Mordekaiser", title: "鉄の亡霊", role: "Top", description: "敵を1対1の死の領域に引きずり込み、ステータスを奪う重戦車。", stats: { valMacro: 2, valTeam: -4, valLate: 6, valRange: -8, valImmobile: 8, valSustain: 8 } },
+      { name: "モルガナ", id: "Morgana", title: "堕ちた天使", role: "Support", description: "CC無効のブラックシールドと長時間スネアで敵の攻めを完全に封じる。", stats: { valMacro: 6, valTeam: 8, valLate: 2, valRange: 6, valImmobile: 6, valSustain: 4 } },
+      { name: "ナフィリ", id: "Naafiri", title: "百の牙", role: "Mid", description: "猟犬の群れを率いてターゲットに食らいつく、集団戦型アサシン。", stats: { valMacro: 0, valTeam: -4, valLate: 4, valRange: -6, valImmobile: -6, valSustain: -4 } },
+      { name: "ナミ", id: "Nami", title: "潮呼び", role: "Support", description: "津波を呼び起こし、回復と強化でキャリーを支える万能の人魚。", stats: { valMacro: 6, valTeam: 8, valLate: 2, valRange: 6, valImmobile: 6, valSustain: 6 } },
+      { name: "ナサス", id: "Nasus", title: "砂漠の狗神", role: "Top", description: "ひたすらミニオンを殴り続け、終盤に神の如き一撃を振り下ろす。", stats: { valMacro: 8, valTeam: -6, valLate: 10, valRange: -10, valImmobile: 8, valSustain: 8 } },
+      { name: "ノーチラス", id: "Nautilus", title: "深海のタイタン", role: "Support", description: "巨大な錨と確定打ち上げで、ターゲットを絶対に逃がさない潜水服。", stats: { valMacro: 2, valTeam: 8, valLate: -2, valRange: -6, valImmobile: -4, valSustain: 6 } },
+      { name: "ニーコ", id: "Neeko", title: "不思議なカメレオン", role: "Mid", description: "ミニオンや味方に化けて奇襲をかけ、広範囲をスタンさせる。", stats: { valMacro: 4, valTeam: 4, valLate: 0, valRange: 4, valImmobile: -4, valSustain: -4 } },
+      { name: "ニダリー", id: "Nidalee", title: "野生の狩人", role: "Jungle", description: "超遠距離の槍とクーガーの機動力を併せ持つ、高難易度ジャングラー。", stats: { valMacro: 2, valTeam: -4, valLate: -6, valRange: 4, valImmobile: -8, valSustain: -6 } },
+      { name: "ニーラ", id: "Nilah", title: "放たれし喜び", role: "ADC", description: "鞭を振るって敵陣に飛び込む、異端の近接格闘ADC。", stats: { valMacro: -2, valTeam: 2, valLate: 8, valRange: -8, valImmobile: -6, valSustain: 6 } },
+      { name: "ノクターン", id: "Nocturne", title: "永遠の悪夢", role: "Jungle", description: "全画面の視界を奪い、遠く離れた獲物へ一直線に飛んで暗殺する。", stats: { valMacro: 4, valTeam: -2, valLate: -2, valRange: -8, valImmobile: -8, valSustain: -6 } },
+      { name: "ヌヌ＆ウィルンプ", id: "Nunu", title: "少年とイエティ", role: "Jungle", description: "巨大な雪玉を転がして爆速でガンクを刺す、オブジェクト管理の鬼。", stats: { valMacro: 8, valTeam: 6, valLate: -4, valRange: -8, valImmobile: -8, valSustain: 6 } },
+      { name: "オラフ", id: "Olaf", title: "狂戦士", role: "Top", description: "CCを完全に無効化し、死を恐れず敵のキャリーに向かって猪突猛進する。", stats: { valMacro: -8, valTeam: -4, valLate: -4, valRange: -10, valImmobile: -4, valSustain: 8 } },
+      { name: "オリアナ", id: "Orianna", title: "ぜんまい仕掛けの舞手", role: "Mid", description: "ボールを操り、味方との連携で完璧な集団戦を作り上げるコントロールメイジ。", stats: { valMacro: 8, valTeam: 6, valLate: 8, valRange: 6, valImmobile: 8, valSustain: 6 } },
+      { name: "オーン", id: "Ornn", title: "山の炎", role: "Top", description: "アイテムを強化し、集団戦で最強のCCを撒き散らす硬い神。", stats: { valMacro: 4, valTeam: 8, valLate: 8, valRange: -6, valImmobile: 8, valSustain: 8 } },
+      { name: "パンテオン", id: "Pantheon", title: "砕かれぬ槍", role: "Support", description: "盾で攻撃を防ぎ、空から降臨して序盤の盤面を支配する戦士。", stats: { valMacro: 2, valTeam: 2, valLate: -6, valRange: -6, valImmobile: -6, valSustain: -4 } },
+      { name: "ポッピー", id: "Poppy", title: "ハンマーの守護者", role: "Top", description: "敵のダッシュを叩き落とし、ハンマーで敵を彼方へ吹き飛ばす。", stats: { valMacro: 4, valTeam: 6, valLate: 2, valRange: -8, valImmobile: -2, valSustain: 6 } },
+      { name: "パイク", id: "Pyke", title: "ブラッドハーバーの殺戮鬼", role: "Support", description: "サポートでありながらキルを量産し、味方にお金を分け与える暗殺者。", stats: { valMacro: -2, valTeam: 2, valLate: -4, valRange: -4, valImmobile: -8, valSustain: -8 } },
+      { name: "キヤナ", id: "Qiyana", title: "イシュタルの女帝", role: "Mid", description: "地形のエレメントを奪い、広範囲の壁ドンスタンで戦局を支配する。", stats: { valMacro: 0, valTeam: -4, valLate: 2, valRange: -6, valImmobile: -8, valSustain: -8 } },
+      { name: "クイン", id: "Quinn", title: "デマーシアの翼", role: "Top", description: "鳥と共に超高速でマップを飛び回り、孤立した敵を狩る。", stats: { valMacro: 4, valTeam: -6, valLate: 0, valRange: 4, valImmobile: -10, valSustain: -4 } },
+      { name: "ラカン", id: "Rakan", title: "魅惑のダンサー", role: "Support", description: "目にも留まらぬ速さで敵陣をかき回し、味方の元へ帰還するダンサー。", stats: { valMacro: 2, valTeam: 8, valLate: 4, valRange: -4, valImmobile: -10, valSustain: -2 } },
+      { name: "ラムス", id: "Rammus", title: "アーマードロジロ", role: "Jungle", description: "圧倒的な防御力でADキャリーを反射ダメージだけで倒す丸い悪魔。", stats: { valMacro: 2, valTeam: 4, valLate: 4, valRange: -10, valImmobile: -8, valSustain: 6 } },
+      { name: "レク＝サイ", id: "RekSai", title: "ヴォイドの潜伏者", role: "Jungle", description: "地中から振動を感知し、予測不能な角度から敵を打ち上げる。", stats: { valMacro: 4, valTeam: 0, valLate: -4, valRange: -8, valImmobile: -6, valSustain: -2 } },
+      { name: "レル", id: "Rell", title: "鉄の乙女", role: "Support", description: "自身の防御を捨てて敵陣に重い一撃を叩き込み、全員を磁力で引き寄せる。", stats: { valMacro: 2, valTeam: 8, valLate: 4, valRange: -8, valImmobile: -4, valSustain: 6 } },
+      { name: "レナータ・グラスク", id: "Renata", title: "ケミテック男爵", role: "Support", description: "敵同士を殺し合わせる劇薬と、死を先送りする力で盤面を操る。", stats: { valMacro: 8, valTeam: 6, valLate: 6, valRange: 4, valImmobile: 8, valSustain: 4 } },
+      { name: "レネクトン", id: "Renekton", title: "砂漠の屠殺者", role: "Top", description: "序盤のレーン戦で絶対的な強さを誇り、タワーダイブで敵を粉砕する。", stats: { valMacro: -2, valTeam: -4, valLate: -6, valRange: -8, valImmobile: -4, valSustain: -4 } },
+      { name: "レンガー", id: "Rengar", title: "誇り高き狩人", role: "Jungle", description: "茂みから飛びかかり、一瞬で獲物を狩り取る究極のハンター。", stats: { valMacro: -4, valTeam: -8, valLate: 0, valRange: -8, valImmobile: -6, valSustain: -10 } },
+      { name: "リヴェン", id: "Riven", title: "追放者", role: "Top", description: "キャンセル技を駆使した流れるようなコンボで、機動力と火力を両立する。", stats: { valMacro: -4, valTeam: -6, valLate: 2, valRange: -8, valImmobile: -8, valSustain: -6 } },
+      { name: "ランブル", id: "Rumble", title: "機械の脅威", role: "Top", description: "オーバーヒートを管理し、イコライザーで集団戦の地形を炎上させる。", stats: { valMacro: 4, valTeam: 4, valLate: 2, valRange: -4, valImmobile: 4, valSustain: 6 } },
+      { name: "ライズ", id: "Ryze", title: "ルーンメイジ", role: "Mid", description: "スキルを無限に回し続け、集団ワープでマクロな戦術を可能にする。", stats: { valMacro: 8, valTeam: 4, valLate: 8, valRange: 4, valImmobile: 6, valSustain: 8 } },
+      { name: "サミーラ", id: "Samira", title: "砂漠の薔薇", role: "ADC", description: "スタイリッシュにコンボを決め、敵陣のど真ん中で弾丸の竜巻を起こす。", stats: { valMacro: -6, valTeam: -6, valLate: 4, valRange: 0, valImmobile: -8, valSustain: -6 } },
+      { name: "セジュアニ", id: "Sejuani", title: "極北の激怒", role: "Jungle", description: "相棒の猪と共に敵を氷漬けにし、重厚な前線を作り上げる。", stats: { valMacro: 4, valTeam: 8, valLate: 4, valRange: -8, valImmobile: -2, valSustain: 6 } },
+      { name: "セナ", id: "Senna", title: "贖罪者", role: "Support", description: "魂を集めて射程を無限に伸ばし、サポートでありながら火力を出す。", stats: { valMacro: 6, valTeam: 2, valLate: 10, valRange: 10, valImmobile: 8, valSustain: 6 } },
+      { name: "セラフィーン", id: "Seraphine", title: "希望のメロディー", role: "Support", description: "味方が多いほど力を増す音楽の魔法で、広範囲を魅了する。", stats: { valMacro: 6, valTeam: 10, valLate: 8, valRange: 8, valImmobile: 8, valSustain: 6 } },
+      { name: "セト", id: "Sett", title: "ボスの威厳", role: "Top", description: "受けたダメージを巨大なシールドと確定ダメージの正拳突きで返す裏社会のボス。", stats: { valMacro: -4, valTeam: 2, valLate: 0, valRange: -10, valImmobile: 2, valSustain: 4 } },
+      { name: "シャコ", id: "Shaco", title: "悪魔の道化師", role: "Jungle", description: "ステルスとびっくり箱で敵の精神を破壊する、正真正銘のトリックスター。", stats: { valMacro: -4, valTeam: -8, valLate: -6, valRange: -6, valImmobile: -8, valSustain: -6 } },
+      { name: "シェン", id: "Shen", title: "黄昏の瞳", role: "Top", description: "どこにいても味方の危機にシールドを張ってワープしてくる忍者。", stats: { valMacro: 10, valTeam: 10, valLate: 2, valRange: -8, valImmobile: 2, valSustain: 6 } },
+      { name: "シヴァーナ", id: "Shyvana", title: "ハーフドラゴン", role: "Jungle", description: "巨大なドラゴンに変身し、広範囲に炎のブレスを吐き散らす。", stats: { valMacro: 2, valTeam: 0, valLate: 6, valRange: -4, valImmobile: -2, valSustain: -4 } },
+      { name: "シンジド", id: "Singed", title: "狂人の薬効", role: "Top", description: "毒を撒き散らしながら逃げ回り、追いかけてきた敵を壊滅させる異端者。", stats: { valMacro: 8, valTeam: 0, valLate: 4, valRange: -8, valImmobile: -10, valSustain: 8 } },
+      { name: "サイオン", id: "Sion", title: "不死身の重戦車", role: "Top", description: "死んでもなお殴り続け、無限に体力を増やす攻城兵器。", stats: { valMacro: 8, valTeam: 2, valLate: 8, valRange: -8, valImmobile: 6, valSustain: 10 } },
+      { name: "シヴィア", id: "Sivir", title: "戦場の女王", role: "ADC", description: "ブーメランでミニオンを瞬殺し、味方全員の足を速めて集団戦を制す。", stats: { valMacro: 8, valTeam: 6, valLate: 8, valRange: 6, valImmobile: 4, valSustain: 8 } },
+      { name: "スカーナー", id: "Skarner", title: "水晶の先兵", role: "Jungle", description: "クリスタルを制圧し、敵を引きずり回して強制的に孤立させる。", stats: { valMacro: 6, valTeam: 6, valLate: 4, valRange: -8, valImmobile: -4, valSustain: 6 } },
+      { name: "スモルダー", id: "Smolder", title: "焦炎の幼竜", role: "ADC", description: "スタックを溜めて成長し、終盤は広範囲に確定ダメージの炎を吐き出す。", stats: { valMacro: 6, valTeam: 0, valLate: 10, valRange: 6, valImmobile: 2, valSustain: 8 } },
+      { name: "ソナ", id: "Sona", title: "弦楽器の達人", role: "Support", description: "オーラで周囲の味方全員に回復、加速、強化を配り続ける。", stats: { valMacro: 4, valTeam: 10, valLate: 10, valRange: 6, valImmobile: 8, valSustain: 8 } },
+      { name: "ソラカ", id: "Soraka", title: "星の子", role: "Support", description: "自らの体力を削ってでも味方を癒やし続ける、究極の利他チャンピオン。", stats: { valMacro: 2, valTeam: 10, valLate: 6, valRange: 6, valImmobile: 8, valSustain: 10 } },
+      { name: "スウェイン", id: "Swain", title: "ノクサス大将軍", role: "Support", description: "悪魔の力を解放し、敵陣のど真ん中で周囲の体力を吸い尽くす将軍。", stats: { valMacro: 4, valTeam: 4, valLate: 6, valRange: 4, valImmobile: 8, valSustain: 8 } },
+      { name: "サイラス", id: "Sylas", title: "奪われし彼方", role: "Mid", description: "敵のアルティメットを盗み出し、魔法の鎖で乱戦を支配する革命家。", stats: { valMacro: 2, valTeam: -2, valLate: 6, valRange: -6, valImmobile: -6, valSustain: 4 } },
+      { name: "シンドラ", id: "Syndra", title: "闇の元首", role: "Mid", description: "暗黒の球体を操り、圧倒的なバーストダメージで対象を消滅させる。", stats: { valMacro: 4, valTeam: -2, valLate: 8, valRange: 6, valImmobile: 8, valSustain: -8 } },
+      { name: "タム・ケンチ", id: "TahmKench", title: "川の王", role: "Top", description: "味方を丸呑みにして守るか、敵を飲み込んで隔離する巨大なナマズ。", stats: { valMacro: 6, valTeam: 8, valLate: 4, valRange: -8, valImmobile: -2, valSustain: 8 } },
+      { name: "タリヤ", id: "Taliyah", title: "岩使い", role: "Jungle", description: "岩の壁でマップを分断し、高速でロームして盤面をコントロールする。", stats: { valMacro: 8, valTeam: 4, valLate: 6, valRange: 6, valImmobile: 2, valSustain: 4 } },
+      { name: "タロン", id: "Talon", title: "刀鋒の影", role: "Mid", description: "あらゆる壁をパルクールで飛び越え、予測不能な位置から暗殺する。", stats: { valMacro: 2, valTeam: -6, valLate: -6, valRange: -8, valImmobile: -10, valSustain: -8 } },
+      { name: "タリック", id: "Taric", title: "ヴァロランの盾", role: "Support", description: "味方全体を無敵にするアルティメットで、集団戦の勝敗を完全に覆す。", stats: { valMacro: 6, valTeam: 10, valLate: 8, valRange: -8, valImmobile: 6, valSustain: 8 } },
+      { name: "ティーモ", id: "Teemo", title: "敏速の斥候", role: "Top", description: "見えない毒キノコをマップ中に仕掛け、敵の精神を破壊するマスコット。", stats: { valMacro: 8, valTeam: -6, valLate: 8, valRange: 4, valImmobile: 2, valSustain: 6 } },
+      { name: "スレッシュ", id: "Thresh", title: "魂の看守", role: "Support", description: "フックとランタンで攻守両面において無限の可能性を生み出すサポート。", stats: { valMacro: 8, valTeam: 8, valLate: 6, valRange: 2, valImmobile: 2, valSustain: 4 } },
+      { name: "トリスターナ", id: "Tristana", title: "ヨードルの大砲", role: "ADC", description: "タワーを消し飛ばし、キルを取るたびにジャンプして大暴れする。", stats: { valMacro: 2, valTeam: -2, valLate: 8, valRange: 8, valImmobile: -6, valSustain: -4 } },
+      { name: "トランドル", id: "Trundle", title: "トロールキング", role: "Top", description: "敵のステータスを吸い取り、タワーをへし折ることに特化したトロール。", stats: { valMacro: 6, valTeam: -4, valLate: 4, valRange: -10, valImmobile: 2, valSustain: 6 } },
+      { name: "トリンダメア", id: "Tryndamere", title: "蛮族の王", role: "Top", description: "絶対に死なない5秒間を利用して、ひたすら右クリックで破壊の限りを尽くす。", stats: { valMacro: 4, valTeam: -8, valLate: 6, valRange: -10, valImmobile: -6, valSustain: 6 } },
+      { name: "ツイステッド・フェイト", id: "TwistedFate", title: "カードの達人", role: "Mid", description: "確定スタンのカードと広範囲ワープで、マップ全体に圧力をかけるイカサマ師。", stats: { valMacro: 10, valTeam: 6, valLate: 6, valRange: 6, valImmobile: 4, valSustain: -2 } },
+      { name: "トゥイッチ", id: "Twitch", title: "黒死のネズミ", role: "ADC", description: "透明状態から忍び寄り、貫通する毒矢で敵集団を背後から全滅させる。", stats: { valMacro: 4, valTeam: -6, valLate: 10, valRange: 8, valImmobile: -4, valSustain: 6 } },
+      { name: "ウディア", id: "Udyr", title: "精霊の守護者", role: "Jungle", description: "4つの獣の型を切り替えながら、足の速さだけで全てを解決するインファイター。", stats: { valMacro: 6, valTeam: 0, valLate: 4, valRange: -10, valImmobile: -2, valSustain: 8 } },
+      { name: "アーゴット", id: "Urgot", title: "ドレッドノート", role: "Top", description: "周囲のショットガン膝で敵を粉砕し、遠距離から処刑の鎖を引き寄せる。", stats: { valMacro: 2, valTeam: 0, valLate: 6, valRange: 0, valImmobile: 6, valSustain: 6 } },
+      { name: "ヴァルス", id: "Varus", title: "報復の矢", role: "ADC", description: "腐敗のスタックを溜め、超遠距離から必殺の矢を放ち割合ダメージを与える。", stats: { valMacro: 4, valTeam: 2, valLate: 6, valRange: 8, valImmobile: 8, valSustain: -4 } },
+      { name: "ヴェイン", id: "Vayne", title: "闇の狩人", role: "ADC", description: "短い射程と引き換えに、全てのタンクを溶かす確定ダメージとステルスを持つ。", stats: { valMacro: -6, valTeam: -6, valLate: 10, valRange: 2, valImmobile: -6, valSustain: 6 } },
+      { name: "ベイガー", id: "Veigar", title: "小さき悪の支配者", role: "Mid", description: "無限に魔力を高め、ワンコンボでどんな敵も消し飛ばす極悪ヨードル。", stats: { valMacro: 4, valTeam: 2, valLate: 10, valRange: 6, valImmobile: 8, valSustain: -10 } },
+      { name: "ヴェル＝コズ", id: "Velkoz", title: "虚空の目", role: "Support", description: "幾何学的なレーザーで敵を解析し、確定ダメージで溶かすヴォイドの目。", stats: { valMacro: 8, valTeam: 2, valLate: 6, valRange: 10, valImmobile: 10, valSustain: 6 } },
+      { name: "ヴェックス", id: "Vex", title: "憂鬱なるヨードル", role: "Mid", description: "敵のダッシュを咎め、影の魔法で遠距離から突進して恐怖を与える。", stats: { valMacro: 2, valTeam: 0, valLate: 4, valRange: 6, valImmobile: -4, valSustain: -6 } },
+      { name: "ヴァイ", id: "Vi", title: "ピルトーヴァーの用心棒", role: "Jungle", description: "巨大なガントレットで狙った獲物を絶対に逃さず、強引に打ち上げる。", stats: { valMacro: 0, valTeam: 2, valLate: -2, valRange: -8, valImmobile: -6, valSustain: -6 } },
+      { name: "ヴィエゴ", id: "Viego", title: "滅びの王", role: "Jungle", description: "倒した敵の体を乗っ取り、そのスキルを使って連鎖的にキルを生む王。", stats: { valMacro: -2, valTeam: -6, valLate: 8, valRange: -6, valImmobile: -4, valSustain: -2 } },
+      { name: "ビクター", id: "Viktor", title: "機械化の先触れ", role: "Mid", description: "スキルを進化させ、広範囲のレーザーと重力場で集団戦を支配する。", stats: { valMacro: 6, valTeam: 4, valLate: 8, valRange: 6, valImmobile: 8, valSustain: 6 } },
+      { name: "ブラッドミア", id: "Vladimir", title: "真紅の死神", role: "Mid", description: "血を吸って無限に回復し、血の沼に潜って敵陣の中心で爆発する。", stats: { valMacro: 0, valTeam: -4, valLate: 10, valRange: 4, valImmobile: 2, valSustain: 8 } },
+      { name: "ボリベア", id: "Volibear", title: "無慈悲なる嵐", role: "Top", description: "雷を落としてタワーを無力化し、圧倒的な力で前線に飛び込む半神。", stats: { valMacro: 0, valTeam: 2, valLate: 0, valRange: -8, valImmobile: -4, valSustain: 6 } },
+      { name: "ワーウィック", id: "Warwick", title: "ゾウンの激怒", role: "Jungle", description: "血の匂いを嗅ぎつけ、手負いの獲物に向かって爆速で走る人狼。", stats: { valMacro: -4, valTeam: -2, valLate: -4, valRange: -10, valImmobile: -6, valSustain: 8 } },
+      { name: "ウーコン", id: "Wukong", title: "美猴王", role: "Jungle", description: "分身で敵を騙し、如意棒を振り回して敵全体をノックアップする猿。", stats: { valMacro: 0, valTeam: 4, valLate: 4, valRange: -6, valImmobile: -6, valSustain: 4 } },
+      { name: "ザヤ", id: "Xayah", title: "逆羽", role: "ADC", description: "ばら撒いた羽を引き戻し、近づく敵を返り討ちにする自衛力最強のADC。", stats: { valMacro: 4, valTeam: 2, valLate: 8, valRange: 6, valImmobile: 4, valSustain: -2 } },
+      { name: "ゼラス", id: "Xerath", title: "超越者", role: "Support", description: "画面外からの超遠距離魔法で、相手に何もさせずに削り切る砲台。", stats: { valMacro: 6, valTeam: 0, valLate: 8, valRange: 10, valImmobile: 10, valSustain: -4 } },
+      { name: "シン・ジャオ", id: "XinZhao", title: "デマーシアの武勲", role: "Jungle", description: "槍を構えて真っ直ぐに突撃し、一騎打ちの状況を強制的に作り出す。", stats: { valMacro: -2, valTeam: 2, valLate: -6, valRange: -8, valImmobile: -6, valSustain: 4 } },
+      { name: "ヤスオ", id: "Yasuo", title: "赦されざる者", role: "Mid", description: "風の壁で飛び道具を全て防ぎ、流れるように敵陣を切り裂く侍。", stats: { valMacro: -8, valTeam: -6, valLate: 8, valRange: -8, valImmobile: -8, valSustain: 6 } },
+      { name: "ヨネ", id: "Yone", title: "忘れられし者", role: "Mid", description: "霊体となって安全圏から飛び込み、二刀流で敵を一網打尽にする兄。", stats: { valMacro: -6, valTeam: -4, valLate: 8, valRange: -6, valImmobile: -8, valSustain: -4 } },
+      { name: "ヨリック", id: "Yorick", title: "魂の導き手", role: "Top", description: "霧の乙女とグールを召喚し、一人で黙々とタワーを割り続ける墓掘り。", stats: { valMacro: 8, valTeam: -8, valLate: 6, valRange: -6, valImmobile: 8, valSustain: 8 } },
+      { name: "ユーミ", id: "Yuumi", title: "魔法の猫", role: "Support", description: "味方に憑依して無敵になり、回復と強化を与え続ける魔法の猫。", stats: { valMacro: 4, valTeam: 10, valLate: 8, valRange: 6, valImmobile: 10, valSustain: 8 } },
+      { name: "ザック", id: "Zac", title: "秘密兵器", role: "Jungle", description: "スライムの体を超遠距離からパチンコのように発射し、強引にエンゲージする。", stats: { valMacro: 4, valTeam: 8, valLate: 4, valRange: -6, valImmobile: -8, valSustain: 6 } },
+      { name: "ゼド", id: "Zed", title: "影の頭目", role: "Mid", description: "影と位置を入れ替えて対象を暗殺し、悠然と帰還する手裏剣の使い手。", stats: { valMacro: -2, valTeam: -8, valLate: -4, valRange: -4, valImmobile: -8, valSustain: -10 } },
+      { name: "ゼリ", id: "Zeri", title: "ゾウンの火花", role: "ADC", description: "帯電しながら信じられない速度で走り回り、弾幕を張り続ける。", stats: { valMacro: 0, valTeam: 0, valLate: 10, valRange: 6, valImmobile: -10, valSustain: 8 } },
+      { name: "ジグス", id: "Ziggs", title: "ヘクステック爆弾魔", role: "Mid", description: "安全な遠距離から爆弾を投げ続け、タワーを魔法の爆薬で一瞬で解体する。", stats: { valMacro: 8, valTeam: 2, valLate: 6, valRange: 10, valImmobile: 8, valSustain: 6 } },
+      { name: "ジリアン", id: "Zilean", title: "時の番人", role: "Support", description: "味方の時間を巻き戻して蘇生し、爆弾で敵をスタンさせる時空の魔術師。", stats: { valMacro: 8, valTeam: 8, valLate: 6, valRange: 6, valImmobile: 4, valSustain: -4 } },
+      { name: "ゾーイ", id: "Zoe", title: "黄昏の星の化身", role: "Mid", description: "遠距離からの睡眠と飛距離で威力の増す星で、一撃必殺の火力を出す。", stats: { valMacro: 2, valTeam: -4, valLate: 4, valRange: 10, valImmobile: -2, valSustain: -10 } },
+      { name: "ザイラ", id: "Zyra", title: "茨の目覚め", role: "Support", description: "植物の種を育てて自律砲台とし、茨の森で敵を拘束する植物学者。", stats: { valMacro: 6, valTeam: 4, valLate: 4, valRange: 8, valImmobile: 10, valSustain: 6 } }
+    ];
+
+    /* ＝＝＝ システム状態 ＝＝＝ */
+    let userName = "";
+    let currentPage = 0;
+    const QUESTIONS_PER_PAGE = 8; 
+    let userAnswers = {};
+    let minigameStats = { valMacro: 0, valTeam: 0, valLate: 0, valRange: 0, valImmobile: 0, valSustain: 0 };
+
+    function startQuiz() {
+      const nameInput = document.getElementById("user-name").value.trim();
+      if (!nameInput) { alert("プレイヤーネームを入力してください！"); return; }
+      userName = nameInput;
+      
+      document.getElementById("start-screen").classList.add("hidden");
+      document.getElementById("quiz-screen").classList.remove("hidden");
+      document.getElementById("progress-wrapper").classList.remove("hidden");
+      renderQuestions();
+    }
+
+    function updateProgress() {
+      const answeredCount = Object.keys(userAnswers).length;
+      document.getElementById("progress-bar").style.width = (answeredCount / questions.length) * 100 + "%";
+    }
+
+    function renderQuestions() {
+      updateProgress();
+      document.getElementById("prev-btn").style.display = currentPage === 0 ? "none" : "block";
+
+      const container = document.getElementById("question-container");
+      container.innerHTML = "";
+      const startIndex = currentPage * QUESTIONS_PER_PAGE;
+      const endIndex = Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length);
+
+      for (let i = startIndex; i < endIndex; i++) {
+        const q = questions[i];
+        const qBlock = document.createElement("div");
+        qBlock.className = "question-block";
+        const qText = document.createElement("div");
+        qText.className = "question-text";
+        qText.innerText = q.text;
+        qBlock.appendChild(qText);
+
+        q.choices.forEach((choice, index) => {
+          const btn = document.createElement("button");
+          btn.className = "choice-btn";
+          btn.innerText = choice.text;
+          if (userAnswers[q.id]?.index === index) btn.classList.add("selected");
+          else if (userAnswers[q.id]) btn.classList.add("dimmed");
+          
+          btn.onclick = () => {
+            qBlock.querySelectorAll(".choice-btn").forEach(b => { b.classList.remove("selected"); b.classList.add("dimmed"); });
+            btn.classList.remove("dimmed"); btn.classList.add("selected");
+            userAnswers[q.id] = { index: index, stats: choice.stats };
+            updateProgress();
+          };
+          qBlock.appendChild(btn);
+        });
+        container.appendChild(qBlock);
+      }
+    }
+
+    function goToPrevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderQuestions();
+      }
+    }
+
+    function goToNextPage() {
+      const startIndex = currentPage * QUESTIONS_PER_PAGE;
+      const endIndex = Math.min(startIndex + QUESTIONS_PER_PAGE, questions.length);
+      for (let i = startIndex; i < endIndex; i++) {
+        if (!userAnswers[questions[i].id]) { alert("すべての質問に回答してください！"); return; }
+      }
+      currentPage++;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      if (currentPage * QUESTIONS_PER_PAGE >= questions.length) {
+        document.getElementById("quiz-screen").classList.add("hidden");
+        document.getElementById("progress-wrapper").classList.add("hidden");
+        document.getElementById("minigame-screen").classList.remove("hidden");
+      } else { 
+        renderQuestions(); 
+      }
+    }
+
+    /* ＝＝＝ ミニゲーム：4秒鬼畜リミットテスト ＝＝＝ */
+    const pourBtn = document.getElementById("pour-btn");
+    const percentText = document.getElementById("current-percent");
+    const timerDisplay = document.getElementById("timer-display");
+    const circleProgress = document.getElementById("circle-progress");
+    const circleInner = document.getElementById("circle-inner");
+    
+    const MAX_TIME = 4.00;
+    const MAX_POUR_AMOUNT = 125;
+    const POUR_SPEED = 100.5;
+
+    let fillAmount = 0;   
+    let clickCount = 0;   
+    let isPouring = false;
+    let isGameRunning = false;
+    let gameStartTime = 0;
+    let animationFrameId;
+
+    function runMinigame() {
+      document.getElementById("start-minigame-btn").classList.add("hidden");
+      pourBtn.classList.remove("hidden");
+      pourBtn.classList.add("active");
+      
+      isGameRunning = true;
+      gameStartTime = performance.now();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop(currentTime) {
+      if (!isGameRunning) return;
+
+      const elapsedSeconds = (currentTime - gameStartTime) / 1000;
+      let timeLeft = Math.max(MAX_TIME - elapsedSeconds, 0);
+
+      timerDisplay.innerText = timeLeft.toFixed(2);
+      if (timeLeft <= 1.50) timerDisplay.classList.add("timer-danger");
+
+      if (isPouring) {
+        fillAmount += POUR_SPEED * (1 / 60); 
+        updateVisuals();
+        if (fillAmount >= MAX_POUR_AMOUNT) stopPouring();
+      }
+
+      if (timeLeft <= 0) finishMinigame();
+      else animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function startPouring(e) {
+      if (e) e.preventDefault(); 
+      if (!isGameRunning || fillAmount >= MAX_POUR_AMOUNT) return; 
+      isPouring = true;
+      clickCount++;
+    }
+
+    function stopPouring(e) {
+      if (e) e.preventDefault();
+      isPouring = false;
+    }
+
+    function updateVisuals() {
+      const displayPercent = Math.floor(fillAmount);
+      
+      percentText.innerHTML = `${displayPercent}<span style="font-size: 0.4em;">%</span>`;
+      const degree = (fillAmount / 100) * 360;
+
+      if (displayPercent > 100) {
+        circleProgress.style.background = `conic-gradient(var(--danger) ${degree}deg, transparent 0deg)`;
+        percentText.style.color = "var(--danger)";
+        circleProgress.classList.add("overcharged-ring");
+        circleInner.classList.add("overcharged-inner");
+      } else {
+        circleProgress.style.background = `conic-gradient(var(--cyan) ${degree}deg, transparent 0deg)`;
+        percentText.style.color = "var(--cyan)";
+        circleProgress.classList.remove("overcharged-ring");
+        circleInner.classList.remove("overcharged-inner");
+      }
+    }
+
+    pourBtn.addEventListener("mousedown", startPouring);
+    pourBtn.addEventListener("mouseup", stopPouring);
+    pourBtn.addEventListener("mouseleave", stopPouring);
+    pourBtn.addEventListener("touchstart", startPouring, {passive: false});
+    pourBtn.addEventListener("touchend", stopPouring, {passive: false});
+
+    function finishMinigame() {
+      isGameRunning = false;
+      cancelAnimationFrame(animationFrameId);
+      pourBtn.classList.remove("active");
+      timerDisplay.classList.remove("timer-danger");
+      
+      let finalPercent = Math.floor(fillAmount);
+      let titleColor = "#fff";
+      
+      if (finalPercent >= 111) {
+        titleColor = "var(--danger)";
+        minigameStats.valTeam -= 6; minigameStats.valMacro -= 6;
+      } else if (finalPercent >= 104) {
+        titleColor = "#e67e22";
+        minigameStats.valMacro -= 4; minigameStats.valSustain -= 3;
+      } else if (finalPercent >= 101) {
+        titleColor = "#f1c40f";
+        minigameStats.valSustain -= 2; minigameStats.valImmobile -= 2;
+      } else if (finalPercent === 100) {
+        titleColor = "var(--gold-1)";
+        minigameStats.valMacro += 5; minigameStats.valImmobile -= 5; minigameStats.valTeam += 5;
+      } else if (finalPercent >= 98) {
+        titleColor = "var(--cyan)";
+        minigameStats.valMacro -= 2; minigameStats.valImmobile -= 4;
+      } else if (finalPercent >= 94) {
+        titleColor = "#3498db";
+        minigameStats.valMacro += 4; minigameStats.valLate += 3;
+      } else {
+        titleColor = "#95a5a6";
+        minigameStats.valRange += 5; minigameStats.valTeam += 2; minigameStats.valLate += 3;
+      }
+
+      if (clickCount === 1) {
+        minigameStats.valMacro -= 3; minigameStats.valTeam -= 2; 
+      } else if (clickCount >= 4) {
+        minigameStats.valMacro += 4; minigameStats.valLate += 2;
+      }
+
+      const msgEl = document.getElementById("minigame-result-msg");
+      msgEl.innerHTML = `<span style="color:${titleColor}">${finalPercent}%</span>`;
+      msgEl.style.opacity = 1;
+
+      setTimeout(calculateResult, 3000);
+    }
+
+    /* ＝＝＝ 最終計算＆結果表示 ＝＝＝ */
+    function calculateResult() {
+      let raw = { ...minigameStats };
+      let answersArr = [];
+      for (const k in userAnswers) {
+        const s = userAnswers[k].stats;
+        answersArr.push(userAnswers[k].index + 1); 
+        for (const a in raw) {
+          raw[a] = (raw[a] || 0) + (s[a] || 0);
+        }
+      }
+      
+      const mapScale = (v) => Math.max(-10, Math.min(10, Math.round((v / 30) * 10)));
+      const userPoint = { 
+        valMacro: mapScale(raw.valMacro), valTeam: mapScale(raw.valTeam), 
+        valLate: mapScale(raw.valLate), valRange: mapScale(raw.valRange),
+        valImmobile: mapScale(raw.valImmobile), valSustain: mapScale(raw.valSustain)
+      };
+
+      let best = allChampions[0], minD = 99999;
+      allChampions.forEach(c => {
+        const d = Math.sqrt(
+          Math.pow(userPoint.valMacro - c.stats.valMacro, 2) + 
+          Math.pow(userPoint.valTeam - c.stats.valTeam, 2) + 
+          Math.pow(userPoint.valLate - c.stats.valLate, 2) + 
+          Math.pow(userPoint.valRange - c.stats.valRange, 2) +
+          Math.pow(userPoint.valImmobile - c.stats.valImmobile, 2) +
+          Math.pow(userPoint.valSustain - c.stats.valSustain, 2)
+        );
+        if (d < minD) { minD = d; best = c; }
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById("minigame-screen").classList.add("hidden");
+      document.getElementById("result-screen").classList.remove("hidden");
+      
+      document.getElementById("display-user-name").innerText = userName;
+      document.getElementById("result-champ-img").src = `https://ddragon.leagueoflegends.com/cdn/14.21.1/img/champion/${best.id}.png`;
+      document.getElementById("result-title").innerText = `「${best.title}」`;
+      document.getElementById("result-champ-name").innerText = best.name;
+      document.getElementById("result-description").innerText = best.description;
+      document.getElementById("result-role").innerText = `適正ロール: ${best.role}`;
+
+      const renderSpectrum = (l, r, v, cl, cr) => {
+        const ratio = ((v + 10) / 20) * 100;
+        return `
+          <div class="stat-row">
+            <div class="stat-labels">
+              <span style="color:${cl};">${l}</span>
+              <span style="color:${cr};">${r}</span>
+            </div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" style="width:100%; background:linear-gradient(90deg,${cl},${cr});"></div>
+              <div class="stat-center-line"></div>
+              <div class="stat-marker" style="left:${ratio}%;"></div>
+            </div>
+          </div>`;
+      };
+
+      document.getElementById("result-stats").innerHTML = 
+        renderSpectrum("直感・ミクロ", "論理・マクロ", userPoint.valMacro, "#b366ff", "#0ac8b9") +
+        renderSpectrum("自己中・エゴ", "献身・利他", userPoint.valTeam, "#e84057", "#27ae60") +
+        renderSpectrum("序盤スノーボール", "終盤スケール", userPoint.valLate, "#d4b87e", "#9b59b6") +
+        renderSpectrum("近接・メレー", "遠距離・レンジ", userPoint.valRange, "#e67e22", "#3498db") +
+        renderSpectrum("機動・アサシン", "不動・どっしり", userPoint.valImmobile, "#f1c40f", "#7f8c8d") +
+        renderSpectrum("バースト・瞬間火力", "持続・タンク", userPoint.valSustain, "#e74c3c", "#2ecc71");
+
+      sendDataToGAS(best.name, userPoint, answersArr);
+    }
+
+    function sendDataToGAS(championName, scorePoint, answersArr) {
+      const summaryStr = `論理:${scorePoint.valMacro},利他:${scorePoint.valTeam},終盤:${scorePoint.valLate},遠距離:${scorePoint.valRange},不動:${scorePoint.valImmobile},持続:${scorePoint.valSustain}`;
+      
+      // 【1段目】大手の ipinfo.io を叩く
+      fetch('https://ipinfo.io/json')
+        .then(response => response.json())
+        .then(data => {
+          const userLocation = (data.region && data.city) ? `${data.region}, ${data.city}` : "不明";
+          executeSend(userLocation);
+        })
+        .catch(error1 => {
+          console.warn("ipinfo取得失敗、予備APIに切り替えます:", error1);
+          
+          // 【2段目】失敗したら geojs を叩く
+          fetch('https://get.geojs.io/v1/ip/geo.json')
+            .then(response => response.json())
+            .then(data => {
+              const userLocation = (data.region && data.city) ? `${data.region}, ${data.city}` : "不明";
+              executeSend(userLocation);
+            })
+            .catch(error2 => {
+              console.error("両方のAPIがブロックされました:", error2);
+              executeSend("取得不可(広告ブロッカー等)");
+            });
+        });
+
+      // 実際にGASへ送信する処理
+      function executeSend(loc) {
+        const payload = {
+          name: userName,
+          location: loc,
+          champion: championName,
+          score_summary: summaryStr,
+          answers: answersArr
+        };
+
+        fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' }, 
+          body: JSON.stringify(payload)
+        }).then(res => console.log("GAS送信成功"))
+          .catch(err => console.error("GAS送信エラー", err));
+      }
+    }
+
+  </script>
+</body>
+</html>
