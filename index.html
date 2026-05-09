@@ -831,11 +831,31 @@
         valLate: mapScale(raw.valLate), valRange: mapScale(raw.valRange),
         valImmobile: mapScale(raw.valImmobile), valSustain: mapScale(raw.valSustain)
       };
-      let best = allChampions[0], minD = 99999;
-      allChampions.forEach(c => {
-        const d = Math.sqrt(Math.pow(userPoint.valMacro-c.stats.valMacro,2)+Math.pow(userPoint.valTeam-c.stats.valTeam,2)+Math.pow(userPoint.valLate-c.stats.valLate,2)+Math.pow(userPoint.valRange-c.stats.valRange,2)+Math.pow(userPoint.valImmobile-c.stats.valImmobile,2)+Math.pow(userPoint.valSustain-c.stats.valSustain,2));
-        if (d < minD) { minD = d; best = c; }
-      });
+      let best = allChampions[0];
+let maxSim = -9999; // 最大の類似度を記録する変数
+
+// ユーザーのスコアベクトルの大きさ（長さを計算）
+const userMag = Math.sqrt(Object.values(userPoint).reduce((sum, val) => sum + val * val, 0));
+
+allChampions.forEach(c => {
+  let dotProduct = 0;
+  // ユーザーと各チャンピオンの「内積」を計算
+  for (const key in userPoint) {
+    dotProduct += userPoint[key] * c.stats[key];
+  }
+  
+  // チャンピオンのスコアベクトルの大きさ
+  const champMag = Math.sqrt(Object.values(c.stats).reduce((sum, val) => sum + val * val, 0));
+
+  // コサイン類似度を計算（0除算を防ぐ処理含む）
+  const similarity = (userMag === 0 || champMag === 0) ? 0 : dotProduct / (userMag * champMag);
+
+  // 最も類似度が高い（グラフの形が似ている）チャンピオンを更新
+  if (similarity > maxSim) {
+    maxSim = similarity;
+    best = c;
+  }
+});
       window.scrollTo({ top: 0, behavior: 'smooth' });
       document.getElementById("minigame-screen").classList.add("hidden");
       document.getElementById("result-screen").classList.remove("hidden");
