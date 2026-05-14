@@ -42,7 +42,12 @@
 
     /* ★汎用クラス */
     .ib { display: inline-block; }
-    .balance-text { text-wrap: balance; word-break: keep-all; overflow-wrap: anywhere; }
+    .balance-text {
+      text-wrap: balance;
+      word-break: normal;
+      overflow-wrap: break-word;
+      line-break: strict; /* 句読点が行の先頭に来るのを防ぐ（禁則処理） */
+    }
     .br-pc { display: block; }
     .br-sp { display: none; }
     .hidden { display: none !important; }
@@ -86,6 +91,14 @@
     .input-group label { display: block; color: var(--gold-1); margin-bottom: 8px; font-weight: bold; font-size: 0.95em; }
     .input-group input { width: 100%; padding: 15px; background: rgba(0,0,0,0.5); border: 1px solid var(--gold-3); color: white; border-radius: 4px; font-size: 1.1em; box-sizing: border-box; outline: none; }
     .input-group input:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(10, 200, 185, 0.3); }
+
+.input-group input::placeholder {
+      color: rgba(255, 255, 255, 0.15); /* 0.15の部分で薄さを調整（1.0が真っ白、0.0が透明） */
+    }
+
+    /* 念のため古いブラウザ対応用 */
+    .input-group input::-webkit-input-placeholder { color: rgba(255, 255, 255, 0.15); }
+    .input-group input::-moz-placeholder { color: rgba(255, 255, 255, 0.15); opacity: 1; }
 
     .action-btn {
       position: relative; background: linear-gradient(180deg, #1e283d, #0a1428); color: var(--gold-2);
