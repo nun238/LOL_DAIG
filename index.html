@@ -430,7 +430,7 @@
       <button class="action-btn btn-gold" onclick="startQuiz()">診断を開始する</button>
 
       <div class="version-info balance-text">
-        App Ver 2.0.2 / LoL Patch 14.21.1<br><br>
+        App Ver 2.0.3 / LoL Patch 14.21.1<br><br>
         『魂のチャンピオン診断』は<span class="ib">Riot Games</span>が所有するアセットを使用し、<span class="ib">Riot Games</span>の<span class="ib">「Legal Jibber Jabber」ポリシー</span>のもと作成された非公式ファンアプリです。
 
 <br><br>※本アプリは品質向上のため、診断結果の統計データを収集しています。
@@ -1239,20 +1239,60 @@
         }
       }
       
-      // ★全チャンピオンとの距離とシンクロ率を計算して配列にする
+      // ★1. ユーザーのベクトルの大きさを計算（コサイン類似度用）
+      let userNormSq = 0;
+      for (const key in precisePoint) {
+        userNormSq += precisePoint[key] * precisePoint[key];
+      }
+      const userNorm = Math.sqrt(userNormSq);
+
+      // ★2. 全チャンピオンとのハイブリッドスコアとシンクロ率を計算
       const scoredChampions = allChampions.map(c => {
         let sumOfSquares = 0;
+        let dotProduct = 0;
+        let champNormSq = 0;
+
         for (const key in precisePoint) {
-          const diff = precisePoint[key] - (c.stats[key] || 0);
+          const userVal = precisePoint[key];
+          const champVal = c.stats[key] || 0;
+
+          // ユークリッド距離用
+          const diff = userVal - champVal;
           sumOfSquares += diff * diff;
+
+          // コサイン類似度用
+          dotProduct += userVal * champVal;
+          champNormSq += champVal * champVal;
         }
+
+        // ① ユークリッド距離スコア (小さいほど全体的な数値が近い。少し厳しめに計算)
         const distance = Math.sqrt(sumOfSquares);
-        const matchPercent = Math.max(0, Math.min(100, Math.round((1 - (distance / 35)) * 100)));
-        return { ...c, distance, matchPercent };
+        const distScore = Math.max(0, 100 - (distance * 1.5));
+        
+        // ② コサイン類似度スコア (-1.0 〜 1.0、1.0に近いほど「タイプの傾向」が似ている)
+        const champNorm = Math.sqrt(champNormSq);
+        const cosineSim = (userNorm === 0 || champNorm === 0) ? 0 : dotProduct / (userNorm * champNorm);
+        const cosScore = Math.max(0, cosineSim) * 100; // マイナスは0とし、0〜100点に変換
+
+        // ③ ハイブリッドスコア (距離60%、類似度40%の割合でブレンド)
+        const rawScore = (distScore * 0.6) + (cosScore * 0.4);
+
+        // ④ ★ここがポイント！上位の差を広げるための非線形カーブ（累乗）処理
+        // 単純な計算だと「92, 91, 91」と詰まるので、差を際立たせる
+        const curvedScore = Math.pow(rawScore / 100, 1.4) * 100;
+
+        // 最終シンクロ率 (最低保証10%、上限100%)
+        const matchPercent = Math.max(10, Math.min(100, Math.round(curvedScore)));
+
+        // 同率%でも正確に順位付けするための小数点スコア
+        const sortScore = curvedScore; 
+
+        return { ...c, sortScore, matchPercent };
       });
 
-      // 距離が近い順に並び替え（1位、2位、3位...）
-      scoredChampions.sort((a, b) => a.distance - b.distance);
+      // ★3. スコアが高い順（降順）に並び替え
+      // ※距離ではなくスコアで評価するようになったため、b - a に変更しています
+      scoredChampions.sort((a, b) => b.sortScore - a.sortScore);
       
       const best = scoredChampions[0]; // 1位
       const secondBest = scoredChampions[1]; // 2位
@@ -1502,21 +1542,15 @@
     function shareOnX() {
       if (!globalResultChampion) return;
 
-      const isReady = window.confirm(
-        "\n結果画像を保存しましたか？\n\n「OK」を押すとXが開きます。\n投稿画面で保存した画像を添付してシェアしてください！"
-      );
-
-      if (!isReady) return;
-
-      const creatorTweetUrl = "https://x.com/nikaido_u_n/status/2054208007110820057?s=46"; 
-
+      // URLの不要なパラメータ(?s=46)を削除してクリーンにする
+      const creatorTweetUrl = "https://x.com/nikaido_u_n/status/2054208007110820057"; 
       const matchPercent = document.getElementById("display-match-percent").innerText;
-
+      
+      // 確認ダイアログを削除した分、投稿テキスト内で画像添付を促す
       const tweetText = `私の魂のチャンピオンは${globalResultChampion.name}でした！\n\n`;
-
       const hashtags = "魂のLOLチャンピオン診断,LoL";
 
-      const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(creatorTweetUrl)}&hashtags=${encodeURIComponent(hashtags)}`;
+      const shareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(creatorTweetUrl)}&hashtags=${encodeURIComponent(hashtags)}`;
       
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
